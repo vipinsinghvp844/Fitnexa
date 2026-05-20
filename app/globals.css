@@ -1,8 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3f7fc;
+  --foreground: #0f172a;
+  --app-bg: #f3f7fc;
+  --app-surface: rgba(255, 255, 255, 0.92);
+  --app-surface-raised: rgba(255, 255, 255, 0.98);
+  --app-sidebar: rgba(248, 250, 252, 0.94);
+  --app-topbar: rgba(243, 247, 252, 0.78);
+  --app-text: #0f172a;
+  --app-muted: #5f6b7a;
+  --app-border: rgba(148, 163, 184, 0.22);
+  --app-border-strong: rgba(100, 116, 139, 0.5);
+}
+
+html.dark {
+  --background: #07111f;
+  --foreground: #e2e8f0;
+  --app-bg: #07111f;
+  --app-surface: rgba(12, 22, 37, 0.88);
+  --app-surface-raised: rgba(15, 23, 42, 0.98);
+  --app-sidebar: rgba(6, 15, 28, 0.96);
+  --app-topbar: rgba(7, 17, 31, 0.78);
+  --app-text: #e2e8f0;
+  --app-muted: #94a3b8;
+  --app-border: rgba(148, 163, 184, 0.16);
+  --app-border-strong: rgba(148, 163, 184, 0.4);
 }
 
 @theme inline {
@@ -12,15 +35,31 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  min-height: 100%;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 34%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 28%),
+    var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+html.dark body {
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.3), transparent 30%),
+    var(--background);
+}
+
+* {
+  border-color: var(--app-border);
+}
+
+::selection {
+  background: rgba(14, 165, 233, 0.22);
 }
