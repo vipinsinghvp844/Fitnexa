@@ -21,6 +21,8 @@ export interface GymDashboardMetrics {
 }
 
 export interface GymClassSummary {
+  image?: string | null;
+  intensity?: string | null;
   id: number;
   name: string;
   description: string | null;
@@ -263,6 +265,7 @@ export interface GymEmployeeSummary {
 }
 
 export interface GymDashboardKPIs {
+  total_revenue: number;
   total_members: number;
   active_members: number;
   trainers_count: number;
@@ -655,6 +658,8 @@ export interface GymClassBooking {
 }
 
 export interface GymClassDetails {
+  image?: string | null;
+  intensity?: string | null;
   id: number;
   name: string;
   description?: string;
@@ -1050,5 +1055,25 @@ export async function confirmRazorpayPlatformSubscription(payload: {
   return request('/api/gym/platform/razorpay/confirm', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+// RE-ADDED EXPORTS
+export async function deleteGymClass(id: string | number) {
+  return await fetchApi(`/gym/classes/${id}`, { method: 'DELETE' });
+}
+
+export async function getGymStaffMember(id: string | number) {
+  return await fetchApi(`/gym/staff/${id}`);
+}
+
+export async function getGymTrainer(id: string | number) {
+  return await fetchApi(`/gym/trainers/${id}`);
+}
+
+export async function updateGymTrainer(id: string | number, data: any) {
+  return await fetchApi(`/gym/trainers/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
   });
 }

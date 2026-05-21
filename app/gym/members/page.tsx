@@ -10,6 +10,9 @@ import { LoadingState } from '@/components/admin/loading-state';
 import { Modal } from '@/components/admin/modal';
 import { Pagination } from '@/components/admin/pagination';
 import { StatusBadge } from '@/components/admin/status-badge';
+import { ImageUpload } from '@/components/admin/image-upload';
+import { useToast } from '@/components/admin/toast';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   createGymMember,
   deleteGymMember,
@@ -35,6 +38,7 @@ type MemberForm = {
   phone: string;
   gender: Gender | '';
   dob: string;
+  profile_picture: string;
   address: string;
   emergency_contact: string;
   joining_date: string;
@@ -51,6 +55,7 @@ const emptyForm = (): MemberForm => ({
   phone: '',
   gender: '',
   dob: '',
+  profile_picture: '',
   address: '',
   emergency_contact: '',
   joining_date: new Date().toISOString().slice(0, 10),
@@ -98,6 +103,7 @@ function memberToForm(member: GymMemberSummary): MemberForm {
     phone: member.phone ?? '',
     gender: member.gender ?? '',
     dob: member.dob ?? '',
+    profile_picture: member.profile_picture ?? '',
     address: member.address ?? '',
     emergency_contact: member.emergency_contact ?? '',
     joining_date: member.joining_date ?? new Date().toISOString().slice(0, 10),
@@ -110,6 +116,10 @@ function memberToForm(member: GymMemberSummary): MemberForm {
 }
 
 export default function GymMembersPage() {
+  const { success: toastSuccess, error: toastError } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [query, setQuery] = useState({
     q: '',
     status: '',
@@ -131,6 +141,18 @@ export default function GymMembersPage() {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<MemberForm>(() => emptyForm());
   const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (searchParams?.get('create') === 'true') {
+      setEditId(null);
+      setForm(emptyForm());
+      setFormOpen(true);
+      
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('create');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+  }, [searchParams]);
 
   const loadOptions = useCallback(async () => {
     setOptionsLoading(true);
@@ -192,9 +214,13 @@ export default function GymMembersPage() {
         className: 'min-w-[260px]',
         render: (member: GymMemberSummary) => (
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900/5 text-sm font-semibold text-slate-900">
-              {initials(member.name)}
-            </div>
+            {member.profile_picture ? (
+              <img src={member.profile_picture} alt={member.name || ''} className="h-11 w-11 shrink-0 rounded-full object-cover" />
+            ) : (
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900/5 text-sm font-semibold text-slate-900">
+                {initials(member.name)}
+              </div>
+            )}
             <div className="min-w-0">
               <div className="truncate font-semibold text-slate-900">{member.name}</div>
               <div className="truncate text-sm text-[color:var(--app-muted)]">{member.email}</div>
@@ -277,6 +303,7 @@ export default function GymMembersPage() {
       phone: form.phone.trim(),
       gender: form.gender || null,
       dob: form.dob || null,
+      profile_picture: form.profile_picture || null,
       address: form.address || null,
       emergency_contact: form.emergency_contact || null,
       joining_date: form.joining_date,
@@ -296,8 +323,10 @@ export default function GymMembersPage() {
     try {
       if (editId) {
         await updateGymMember(editId, payloadFromForm());
+        toastSuccess('Member Updated', 'Member details have been updated successfully.');
       } else {
         await createGymMember(payloadFromForm());
+        toastSuccess('Member Added', 'New member has been created successfully.');
       }
 
       setFormOpen(false);
@@ -306,6 +335,7 @@ export default function GymMembersPage() {
       await loadMembers();
     } catch (err) {
       setError(getErrorMessage(err));
+      toastError('Action Failed', getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -317,10 +347,12 @@ export default function GymMembersPage() {
     setSubmitting(true);
     try {
       await deleteGymMember(deleteId);
+      toastSuccess('Member Deleted', 'The member has been removed.');
       setDeleteId(null);
       await loadMembers();
     } catch (err) {
       setError(getErrorMessage(err));
+      toastError('Delete Failed', getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -405,9 +437,13 @@ export default function GymMembersPage() {
             mobileRender={(member) => (
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-900/5 text-sm font-semibold text-slate-900">
-                    {initials(member.name)}
-                  </div>
+                  {member.profile_picture ? (
+                    <img src={member.profile_picture} alt={member.name || ''} className="h-12 w-12 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-900/5 text-sm font-semibold text-slate-900">
+                      {initials(member.name)}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-semibold text-slate-900">{member.name}</div>
                     <div className="truncate text-sm text-[color:var(--app-muted)]">{member.email}</div>
@@ -475,6 +511,13 @@ export default function GymMembersPage() {
         }}
       >
         <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="flex justify-center mb-6">
+            <ImageUpload
+              value={form.profile_picture || ''}
+              onChange={(url) => setForm({ ...form, profile_picture: url })}
+              label="Profile Picture"
+            />
+          </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Field label="Name">
               <TextInput value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />

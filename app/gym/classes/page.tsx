@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AdminPageHeader } from '@/components/admin/page-header';
 import { DashboardIcon } from '@/components/dashboard/dashboard-icons';
+import { ImageUpload } from '@/components/admin/image-upload';
+import { useToast } from '@/components/admin/toast';
 import { getGymClasses, createGymClass, bookGymClass, updateGymClassBookingStatus, getGymTrainers, getGymMembers, getGymClassDetails, type GymClassDetails, type GymClassSchedule, type GymClassBooking } from '@/lib/gym';
 import { getErrorMessage } from '@/lib/errors';
 import { LoadingState } from '@/components/admin/loading-state';
@@ -101,22 +103,43 @@ export default function GymClassesPage() {
           {view === 'grid' && (
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {classes.map((gymClass) => (
-                <div key={gymClass.id} className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[color:var(--app-border)] bg-[color:var(--app-surface)] p-6 shadow-sm transition hover:shadow-md dark:hover:shadow-none dark:hover:border-slate-700">
+                <div key={gymClass.id} className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[color:var(--app-border)] bg-[color:var(--app-surface)] shadow-sm transition hover:shadow-md dark:hover:shadow-none dark:hover:border-slate-700">
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent to-sky-50/30 opacity-0 transition group-hover:opacity-100 dark:to-sky-900/10 pointer-events-none" />
-                  
-                  <div className="relative z-10">
-                    <div className="flex items-start justify-between">
+
+                  {/* Class Image Banner */}
+                  <div className="relative w-full aspect-[16/7] overflow-hidden bg-gradient-to-br from-sky-400 via-indigo-500 to-purple-600 shrink-0">
+                    {gymClass.image ? (
+                      <img src={gymClass.image} alt={gymClass.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <DashboardIcon name="classes" className="h-10 w-10 text-white/40" />
+                      </div>
+                    )}
+                    {/* Intensity badge */}
+                    {gymClass.intensity && (
+                      <span className={`absolute top-3 left-3 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow ${
+                        gymClass.intensity === 'High' ? 'bg-rose-600 text-white' :
+                        gymClass.intensity === 'Medium' ? 'bg-amber-500 text-white' :
+                        'bg-emerald-500 text-white'
+                      }`}>
+                        {gymClass.intensity}
+                      </span>
+                    )}
+                    <span className={`absolute top-3 right-3 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold shadow ${
+                      gymClass.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
+                    }`}>
+                      {gymClass.status}
+                    </span>
+                  </div>
+
+                  <div className="relative z-10 p-5 flex flex-col flex-1">
+                    <div className="flex items-start justify-between mb-1">
                       <div>
-                        <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+                        <span className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
                           {gymClass.category || 'General'}
                         </span>
                         <h3 className="text-xl font-bold text-[color:var(--app-text)]">{gymClass.name}</h3>
                       </div>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        gymClass.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
-                      }`}>
-                        {gymClass.status}
-                      </span>
                     </div>
 
                     <div className="mt-6 grid grid-cols-2 gap-4 text-sm text-[color:var(--app-muted)]">
@@ -157,10 +180,9 @@ export default function GymClassesPage() {
                         {!gymClass.schedules?.length && <li className="text-sm text-[color:var(--app-muted)] italic">No schedule set</li>}
                       </ul>
                     </div>
-                  </div>
 
-                  <div className="relative z-10 mt-8 grid grid-cols-2 gap-3 border-t border-[color:var(--app-border)] pt-4">
-                     <button
+                    <div className="mt-auto pt-4 grid grid-cols-2 gap-3 border-t border-[color:var(--app-border)] mt-4">
+                      <button
                         onClick={() => openDetailsModal(gymClass)}
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
                       >
@@ -172,6 +194,7 @@ export default function GymClassesPage() {
                       >
                         Book
                       </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -281,6 +304,8 @@ function CreateClassModal({ trainers, onClose, onSuccess }: { trainers: any[], o
     description: '',
     capacity: 20,
     duration: 60,
+    intensity: 'Medium' as 'Low' | 'Medium' | 'High',
+    image: '',
     trainer_id: '',
   });
 
@@ -343,12 +368,27 @@ function CreateClassModal({ trainers, onClose, onSuccess }: { trainers: any[], o
                 <label className="mb-1.5 block text-sm font-medium text-[color:var(--app-text)]">Duration (Minutes)</label>
                 <input type="number" min="1" value={formData.duration} onChange={(e) => setFormData({...formData, duration: parseInt(e.target.value)})} className="w-full rounded-xl border border-[color:var(--app-border)] bg-transparent px-4 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500" />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-2 md:col-span-1">
+                <label className="mb-1.5 block text-sm font-medium text-[color:var(--app-text)]">Intensity</label>
+                <select value={formData.intensity} onChange={(e) => setFormData({...formData, intensity: e.target.value as 'Low' | 'Medium' | 'High'})} className="w-full rounded-xl border border-[color:var(--app-border)] bg-transparent px-4 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 appearance-none">
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </div>
+              <div className="col-span-2 md:col-span-1">
                 <label className="mb-1.5 block text-sm font-medium text-[color:var(--app-text)]">Assign Trainer</label>
                 <select value={formData.trainer_id} onChange={(e) => setFormData({...formData, trainer_id: e.target.value})} className="w-full rounded-xl border border-[color:var(--app-border)] bg-transparent px-4 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 appearance-none">
                   <option value="">-- Unassigned --</option>
                   {trainers.map(t => <option key={t.id} value={t.id}>{t.user?.name}</option>)}
                 </select>
+              </div>
+              <div className="col-span-2">
+                <ImageUpload
+                  label="Class Image"
+                  value={formData.image}
+                  onChange={(url) => setFormData(prev => ({ ...prev, image: url }))}
+                />
               </div>
             </div>
 
@@ -484,6 +524,7 @@ function BookClassModal({ gymClass, members, onClose, onSuccess }: { gymClass: G
 }
 
 function ClassDetailsModal({ classId, onClose, onUpdate }: { classId: number, onClose: () => void, onUpdate: () => void }) {
+  const { error: toastError } = useToast();
   const [details, setDetails] = useState<GymClassDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -512,7 +553,7 @@ function ClassDetailsModal({ classId, onClose, onUpdate }: { classId: number, on
       await loadDetails();
       onUpdate();
     } catch (err) {
-      alert(getErrorMessage(err));
+      toastError('Update Failed', getErrorMessage(err));
     } finally {
       setActionLoading(null);
     }

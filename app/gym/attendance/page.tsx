@@ -22,6 +22,7 @@ import {
   type PaginatedResponse,
 } from '@/lib/gym';
 import { getErrorMessage } from '@/lib/errors';
+import { useToast } from '@/components/admin/toast';
 
 type AttendanceQuery = {
   date: string;
@@ -133,6 +134,7 @@ export default function GymAttendancePage() {
     page: 1,
   });
   const debouncedQ = useDebouncedValue(query.q, 350);
+  const { success, error: toastError } = useToast();
 
   const [response, setResponse] = useState<PaginatedResponse<GymAttendanceRecord> | null>(null);
   const [summary, setSummary] = useState<GymAttendanceTodaySummary | null>(null);
@@ -143,8 +145,8 @@ export default function GymAttendancePage() {
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [checkingOutId, setCheckingOutId] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  
+  
 
   const [checkInForm, setCheckInForm] = useState<CheckInForm>({
     member_id: '',
@@ -164,7 +166,7 @@ export default function GymAttendancePage() {
       setMembers((memberResponse as PaginatedResponse<GymMemberSummary>).data ?? []);
       setTrainers((trainerResponse as PaginatedResponse<GymTrainerSummary>).data ?? []);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastError(getErrorMessage(err));
     } finally {
       setOptionsLoading(false);
     }
@@ -172,7 +174,7 @@ export default function GymAttendancePage() {
 
   const loadAttendance = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    
     try {
       const [attendanceResponse, summaryResponse] = await Promise.all([
         getGymAttendance({
@@ -190,7 +192,7 @@ export default function GymAttendancePage() {
       setResponse(attendanceResponse as PaginatedResponse<GymAttendanceRecord>);
       setSummary((summaryResponse as { data: GymAttendanceTodaySummary }).data);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -215,15 +217,15 @@ export default function GymAttendancePage() {
   const handleCheckOut = useCallback(
     async (attendance: GymAttendanceRecord) => {
       setCheckingOutId(attendance.id);
-      setError(null);
-      setNotice(null);
+      
+      
 
       try {
         await checkOutGymAttendance(attendance.id);
-        setNotice(`${attendance.member?.name ?? 'Member'} checked out at ${formatTime(new Date().toISOString())}.`);
+        success(`${attendance.member?.name ?? 'Member'} checked out at ${formatTime(new Date().toISOString())}.`);
         await loadAttendance();
       } catch (err) {
-        setError(getErrorMessage(err));
+        toastError(getErrorMessage(err));
       } finally {
         setCheckingOutId(null);
       }
@@ -339,8 +341,8 @@ export default function GymAttendancePage() {
     if (!checkInForm.member_id) return;
 
     setSubmitting(true);
-    setError(null);
-    setNotice(null);
+    
+    
 
     try {
       const payload: {
@@ -360,7 +362,7 @@ export default function GymAttendancePage() {
 
       await checkInGymMember(payload);
       const checkedInMember = members.find((member) => String(member.id) === checkInForm.member_id);
-      setNotice(`${checkedInMember?.name ?? 'Member'} checked in successfully.`);
+      success(`${checkedInMember?.name ?? 'Member'} checked in successfully.`);
       setCheckInForm({
         member_id: '',
         trainer_id: '',
@@ -369,7 +371,7 @@ export default function GymAttendancePage() {
       });
       await loadAttendance();
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastError(getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -414,17 +416,6 @@ export default function GymAttendancePage() {
         }
       />
 
-      {error ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
-          {error}
-        </div>
-      ) : null}
-
-      {notice ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-          {notice}
-        </div>
-      ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricTile

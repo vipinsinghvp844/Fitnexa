@@ -69,7 +69,7 @@ export default function GymDashboardPage() {
         actions={
           <div className="flex gap-2">
             <Link
-              href="/gym/members/create"
+              href="/gym/members?create=true"
               className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500"
             >
               <DashboardIcon name="plus" className="h-4 w-4" />
@@ -92,7 +92,7 @@ export default function GymDashboardPage() {
         <KpiCard title="Active Members" value={data.kpis.active_members} icon="status" iconColor="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" />
         <KpiCard title="Total Trainers" value={data.kpis.trainers_count} icon="shield" iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
         <KpiCard title="Today's Attendance" value={data.kpis.today_attendance} icon="attendance" iconColor="bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400" />
-        <KpiCard title="Today's Revenue" value={formatCurrency(data.kpis.today_revenue)} icon="credit-card" iconColor="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" />
+        <KpiCard title="Total Revenue" value={formatCurrency(data.kpis.total_revenue)} icon="credit-card" iconColor="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" />
         <KpiCard title="Pending Payments" value={data.kpis.pending_payments} icon="arrow-right" iconColor="bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400" />
       </div>
 

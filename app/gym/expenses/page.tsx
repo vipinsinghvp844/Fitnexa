@@ -4,6 +4,7 @@ import { AdminPageHeader } from '@/components/admin/page-header';
 import { DashboardIcon } from '@/components/dashboard/dashboard-icons';
 import { LoadingState } from '@/components/admin/loading-state';
 import { getErrorMessage } from '@/lib/errors';
+import { useToast } from '@/components/admin/toast';
 import {
   getExpenseDashboard, getExpenses, getExpenseCategories,
   createExpense, deleteExpense, createExpenseCategory, deleteExpenseCategory, seedDefaultExpenseCategories,
@@ -13,6 +14,7 @@ import {
 function fmt(n: number) { return '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
 
 export default function ExpensesPage() {
+  const { error: toastError, success: toastSuccess } = useToast();
   const [tab, setTab] = useState<'dashboard'|'list'|'categories'>('dashboard');
   const [dashboard, setDashboard] = useState<ExpenseDashboard | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -40,11 +42,11 @@ export default function ExpensesPage() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this expense?')) return;
-    try { await deleteExpense(id); await loadAll(); } catch(e) { alert(getErrorMessage(e)); }
+    try { await deleteExpense(id); await loadAll(); toastSuccess('Expense deleted'); } catch(e) { toastError('Delete Failed', getErrorMessage(e)); }
   };
 
   const handleSeedDefaults = async () => {
-    try { await seedDefaultExpenseCategories(); await loadAll(); } catch(e) { alert(getErrorMessage(e)); }
+    try { await seedDefaultExpenseCategories(); await loadAll(); toastSuccess('Default categories seeded!'); } catch(e) { toastError('Seed Failed', getErrorMessage(e)); }
   };
 
   const profitColor = dashboard && dashboard.profit >= 0 ? 'text-emerald-500' : 'text-rose-500';

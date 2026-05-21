@@ -95,9 +95,18 @@ export default function GymMemberProfilePage() {
 
       <section className="rounded-[28px] border border-[color:var(--app-border)] bg-[color:var(--app-surface)] p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-[color:var(--app-text)]">{member.name}</h2>
-            <p className="mt-1 text-sm text-[color:var(--app-muted)]">{member.email}</p>
+          <div className="flex items-center gap-4">
+            {member.profile_picture ? (
+              <img src={member.profile_picture} alt={member.name || ''} className="h-16 w-16 shrink-0 rounded-full object-cover" />
+            ) : (
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-900/5 text-xl font-semibold text-slate-900">
+                {member.name ? member.name.charAt(0).toUpperCase() : 'M'}
+              </div>
+            )}
+            <div>
+              <h2 className="text-xl font-semibold text-[color:var(--app-text)]">{member.name}</h2>
+              <p className="mt-1 text-sm text-[color:var(--app-muted)]">{member.email}</p>
+            </div>
           </div>
           <StatusBadge value={member.status ?? 'inactive'} />
         </div>

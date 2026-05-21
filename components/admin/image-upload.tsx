@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import * as Icons from 'lucide-react';
 import { request } from '@/lib/api';
 
@@ -14,6 +15,7 @@ export function ImageUpload({ value, onChange, label }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pathname = usePathname();
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -30,10 +32,14 @@ export function ImageUpload({ value, onChange, label }: ImageUploadProps) {
     const formData = new FormData();
     formData.append('file', file);
 
+    const uploadUrl = pathname?.startsWith('/super-admin')
+      ? '/api/super-admin/settings/upload-media'
+      : '/api/gym/settings/upload-media';
+
     try {
       // NOTE: request automatically attaches auth tokens and builds the full URL
       // It also doesn't set Content-Type to application/json if body is FormData
-      const response = await request('/api/super-admin/settings/upload-media', {
+      const response = await request(uploadUrl, {
         method: 'POST',
         body: formData,
       });

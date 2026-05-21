@@ -151,7 +151,7 @@ export function getPublicGyms(query?: { search?: string; latitude?: number; long
 }
 
 export function getPublicGym(slug: string) {
-  return request(`/api/gyms/${slug}`, { method: 'GET' });
+  return request(`/api/gyms/${slug}`, { method: 'GET', cache: 'no-store' } as RequestInit);
 }
 
 export function submitPublicFeedback(slug: string, payload: { name: string; rating: number; text: string }) {

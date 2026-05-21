@@ -10,8 +10,10 @@ import {
   uploadSupportAttachment,
   Attachment,
 } from '@/lib/support';
+import { useToast } from '@/components/admin/toast';
 
 export default function GymSupportPage() {
+  const { error: toastError } = useToast();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +49,7 @@ export default function GymSupportPage() {
         setReplyAttachments((prev) => [...prev, attachment]);
       }
     } catch (err: any) {
-      alert(err.message || 'File upload failed');
+      toastError('Upload Failed', err.message || 'File upload failed');
     } finally {
       if (target === 'ticket') {
         setUploadingTicketFile(false);

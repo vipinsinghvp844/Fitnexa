@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { DataTable } from '@/components/admin/data-table';
 import { Modal } from '@/components/admin/modal';
 import { AdminPageHeader } from '@/components/admin/page-header';
@@ -9,6 +10,8 @@ import { LoadingState } from '@/components/admin/loading-state';
 import { StatusBadge } from '@/components/admin/status-badge';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import { Field, SelectInput, TextInput } from '@/components/admin/fields';
+import { ImageUpload } from '@/components/admin/image-upload';
+import { useToast } from '@/components/admin/toast';
 import { createGymStaff, deleteGymStaff, getGymStaff, updateGymStaff } from '@/lib/gym';
 import { getErrorMessage } from '@/lib/errors';
 
@@ -49,6 +52,7 @@ interface StaffRow {
   shift: string | null;
   status: StaffStatus | null;
   role: string | null;
+  avatar?: string | null;
   // Trainer-specific fields (extension of Staff)
   specialization?: string | null;
   experience_years?: number | null;
@@ -107,6 +111,7 @@ function getRoleBadge(role?: string | null) {
 }
 
 export default function GymStaffPage() {
+  const { success: toastSuccess, error: toastError } = useToast();
   const [query, setQuery] = useState({
     q: '',
     status: '',
@@ -126,7 +131,8 @@ export default function GymStaffPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [form, setForm] = useState({
+
+  const BLANK_FORM = {
     name: '',
     email: '',
     phone: '',
@@ -134,14 +140,17 @@ export default function GymStaffPage() {
     salary: '',
     shift: '',
     hire_date: '',
-    branch_id: '', // Keep this empty for now, as it's required and will be filled by user
+    branch_id: '',
     role: '' as StaffRole | '',
     specialization: '',
     experience_years: '',
     certifications: '',
     bio: '',
+    avatar: '',
     status: 'active' as StaffStatus,
-  });
+  };
+
+  const [form, setForm] = useState({ ...BLANK_FORM });
 
   const loadStaff = useCallback(async () => {
     setLoading(true);
@@ -173,8 +182,10 @@ export default function GymStaffPage() {
         className: 'min-w-[260px]',
         render: (row: StaffRow) => (
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900/5 text-sm font-semibold text-slate-900">
-              {getInitials(row.user?.name)}
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full overflow-hidden bg-slate-900/5 text-sm font-semibold text-slate-900">
+              {row.avatar
+                ? <img src={row.avatar} alt="" className="w-full h-full object-cover" />
+                : getInitials(row.user?.name)}
             </div>
             <div className="min-w-0">
               <div className="font-semibold text-slate-900">{row.user?.name || 'N/A'}</div>
@@ -222,31 +233,12 @@ export default function GymStaffPage() {
         className: 'w-[220px] text-right',
         render: (row: StaffRow) => (
           <div className="flex justify-end gap-2">
-            <button
-              onClick={() => {
-                setForm({
-                  name: row.user?.name || '',
-                  email: row.user?.email || '',
-                  phone: row.phone || '',
-                  position: row.position || '',
-                  salary: row.salary?.toString() || '',
-                  shift: row.shift || '',
-                  hire_date: row.hire_date || '',
-                  branch_id: row.branch_id?.toString() || '',
-                  role: (row.role as StaffRole) || '',
-                  specialization: row.specialization || '',
-                  experience_years: row.experience_years?.toString() || '',
-                  certifications: row.certifications || '',
-                  bio: row.bio || '',
-                  status: (row.status as StaffStatus) || 'active',
-                });
-                setViewMode(true);
-                setFormOpen(true);
-              }}
+            <Link
+              href={`/gym/staff/${row.id}`}
               className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               View
-            </button>
+            </Link>
             <button
               onClick={() => {
                 setForm({
@@ -263,6 +255,7 @@ export default function GymStaffPage() {
                   experience_years: row.experience_years?.toString() || '',
                   certifications: row.certifications || '',
                   bio: row.bio || '',
+                  avatar: row.avatar || '',
                   status: (row.status as StaffStatus) || 'active',
                 });
                 setEditId(row.id);
@@ -304,36 +297,25 @@ export default function GymStaffPage() {
         experience_years: form.experience_years ? parseInt(form.experience_years, 10) : null,
         certifications: form.certifications || null,
         bio: form.bio || null,
+        avatar: form.avatar || null,
         status: form.status,
       };
 
       if (editId) {
         await updateGymStaff(editId, payload);
+        toastSuccess('Staff Updated', 'Staff member has been updated successfully.');
       } else {
         await createGymStaff(payload);
+        toastSuccess('Staff Added', 'New staff member has been created successfully.');
       }
 
       setFormOpen(false);
       setEditId(null);
-      setForm({
-        name: '',
-        email: '',
-        phone: '',
-        position: '',
-        salary: '',
-        shift: '',
-        hire_date: '',
-        branch_id: '',
-        role: '',
-        specialization: '',
-        experience_years: '',
-        certifications: '',
-        bio: '',
-        status: 'active',
-      });
+      setForm({ ...BLANK_FORM });
       await loadStaff();
     } catch (err) {
       setError(getErrorMessage(err));
+      toastError('Action Failed', getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -344,10 +326,12 @@ export default function GymStaffPage() {
     setSubmitting(true);
     try {
       await deleteGymStaff(deleteId);
+      toastSuccess('Staff Deactivated', 'The staff member has been deactivated.');
       setDeleteId(null);
       await loadStaff();
     } catch (err) {
       setError(getErrorMessage(err));
+      toastError('Deactivation Failed', getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -368,22 +352,7 @@ export default function GymStaffPage() {
             onClick={() => {
               setViewMode(false);
               setEditId(null);
-              setForm({
-                name: '',
-                email: '',
-                phone: '',
-                position: '',
-                salary: '',
-                shift: '',
-                hire_date: '',
-                branch_id: '', // Keep this empty for now, as it's required and will be filled by user
-                role: '' as StaffRole | '',
-                specialization: '',
-                experience_years: '',
-                certifications: '',
-                bio: '',
-                status: 'active',
-              });
+              setForm({ ...BLANK_FORM });
               setFormOpen(true);
             }}
             className="inline-flex items-center justify-center rounded-2xl bg-sky-500 px-5 py-3 text-sm font-medium text-white shadow-[0_14px_30px_rgba(14,165,233,0.28)] transition hover:-translate-y-0.5 hover:bg-sky-600"
@@ -443,8 +412,10 @@ export default function GymStaffPage() {
             mobileRender={(row) => (
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900/5 text-sm font-semibold text-slate-900">
-                    {getInitials(row.user?.name)}
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full overflow-hidden bg-slate-900/5 text-sm font-semibold text-slate-900">
+                    {row.avatar
+                      ? <img src={row.avatar} alt="" className="w-full h-full object-cover" />
+                      : getInitials(row.user?.name)}
                   </div>
                   <div className="min-w-0">
                     <div className="truncate font-semibold text-slate-900">{row.user?.name || 'N/A'}</div>
@@ -471,31 +442,12 @@ export default function GymStaffPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-2">
-                  <button
-                    onClick={() => {
-                      setForm({
-                        name: row.user?.name || '',
-                        email: row.user?.email || '',
-                        phone: row.phone || '',
-                        position: row.position || '',
-                        salary: row.salary?.toString() || '',
-                        shift: row.shift || '',
-                        hire_date: row.hire_date || '',
-                        branch_id: row.branch_id?.toString() || '',
-                        role: (row.role as StaffRole) || '',
-                        specialization: row.specialization || '',
-                        experience_years: row.experience_years?.toString() || '',
-                        certifications: row.certifications || '',
-                        bio: row.bio || '',
-                        status: (row.status as StaffStatus) || 'active',
-                      });
-                      setViewMode(true);
-                      setFormOpen(true);
-                    }}
-                    className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                  <Link
+                    href={`/gym/staff/${row.id}`}
+                    className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 text-center"
                   >
                     View
-                  </button>
+                  </Link>
                   <button
                     onClick={() => {
                       setForm({
@@ -512,6 +464,7 @@ export default function GymStaffPage() {
                         experience_years: row.experience_years?.toString() || '',
                         certifications: row.certifications || '',
                         bio: row.bio || '',
+                        avatar: row.avatar || '',
                         status: (row.status as StaffStatus) || 'active',
                       });
                       setEditId(row.id);
@@ -550,6 +503,13 @@ export default function GymStaffPage() {
         title={viewMode ? 'View Staff' : editId ? 'Edit Staff' : 'Add Staff'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex justify-center mb-6">
+            <ImageUpload
+              value={form.avatar}
+              onChange={(url) => setForm({ ...form, avatar: url })}
+              label="Profile Picture"
+            />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Name">
               <TextInput

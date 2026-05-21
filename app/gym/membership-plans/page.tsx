@@ -16,6 +16,7 @@ import {
   deleteGymMembershipPlan 
 } from '@/lib/gym';
 import { getErrorMessage } from '@/lib/errors';
+import { useToast } from '@/components/admin/toast';
 
 interface GymMembershipPlanRow {
   id: number;
@@ -38,6 +39,7 @@ interface GymMembershipPlansResponse {
 }
 
 export default function GymMembershipPlansPage() {
+  const { error: toastError, success: toastSuccess } = useToast();
   const [response, setResponse] = useState<GymMembershipPlansResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -135,9 +137,10 @@ export default function GymMembershipPlansPage() {
     if (!confirm('Are you sure you want to delete this membership plan? It will no longer show on the public website.')) return;
     try {
       await deleteGymMembershipPlan(id);
+      toastSuccess('Plan deleted successfully');
       fetchPlans();
     } catch (err: any) {
-      alert(getErrorMessage(err) || 'Failed to delete membership plan.');
+      toastError('Delete Failed', getErrorMessage(err) || 'Failed to delete membership plan.');
     }
   };
 

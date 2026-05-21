@@ -5,6 +5,10 @@ import Link from 'next/link';
 import { Globe } from 'lucide-react';
 import GymInteractiveView from './GymInteractiveView';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 interface Props {
   params: Promise<{ slug: string }>;
 }

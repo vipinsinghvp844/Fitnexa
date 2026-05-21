@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { DataTable } from '@/components/admin/data-table';
 import { Modal } from '@/components/admin/modal';
 import { AdminPageHeader } from '@/components/admin/page-header';
@@ -9,15 +10,19 @@ import { LoadingState } from '@/components/admin/loading-state';
 import { StatusBadge } from '@/components/admin/status-badge';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import { Field, SelectInput, TextInput } from '@/components/admin/fields';
-import { createGymStaff, deleteGymStaff, getGymStaff, updateGymStaff } from '@/lib/gym';
+import { ImageUpload } from '@/components/admin/image-upload';
+import { useToast } from '@/components/admin/toast';
+import {
+  getGymTrainers,
+  createGymTrainer,
+  updateGymTrainer,
+  deleteGymTrainer,
+  type GymTrainerSummary,
+} from '@/lib/gym';
 import { getErrorMessage } from '@/lib/errors';
 
-// Re-using Staff types, extended for trainer-specific fields
-type StaffStatus = 'active' | 'inactive' | 'on_leave' | 'terminated';
-type StaffRole = 'manager' | 'trainer' | 'receptionist' | 'accountant';
-
-interface GymStaffResponse {
-  data: StaffRow[];
+interface TrainersResponse {
+  data: GymTrainerSummary[];
   meta: {
     current_page: number;
     last_page: number;
@@ -26,38 +31,6 @@ interface GymStaffResponse {
     from: number | null;
     to: number | null;
   };
-}
-
-interface StaffRow {
-  id: number;
-  user_id: number | null;
-  user: {
-    id: number | null;
-    name: string | null;
-    email: string | null;
-  } | null;
-  phone: string | null;
-  branch_id: number | null;
-  branch: {
-    id: number | null;
-    name: string | null;
-    address: string | null;
-    phone: string | null;
-  } | null;
-  position: string | null;
-  hire_date: string | null;
-  salary: number | null;
-  shift: string | null;
-  status: StaffStatus | null;
-  role: string | null;
-  // Trainer-specific fields
-  specialization?: string | null;
-  experience_years?: number | null;
-  certifications?: string | null;
-  bio?: string | null;
-  assigned_members_count?: number | null; // Assuming this comes from the API
-  created_at: string | null;
-  updated_at: string | null;
 }
 
 function useDebouncedValue<T>(value: T, delayMs: number) {
@@ -79,52 +52,46 @@ function getInitials(name?: string | null) {
     .toUpperCase();
 }
 
-export default function GymTrainersPage() {
-  const [query, setQuery] = useState({
-    q: '',
-    status: '',
-    page: 1,
-  });
+const BLANK_FORM = {
+  full_name: '',
+  email: '',
+  phone: '',
+  specialization: '',
+  experience_years: '',
+  certifications: '',
+  bio: '',
+  avatar: '',
+  salary: '',
+  shift: '',
+  status: 'active' as 'active' | 'inactive' | 'suspended',
+};
 
+export default function GymTrainersPage() {
+  const { success: toastSuccess, error: toastError } = useToast();
+  const [query, setQuery] = useState({ q: '', status: '', page: 1 });
   const debouncedQ = useDebouncedValue(query.q, 400);
 
-  const [response, setResponse] = useState<GymStaffResponse | null>(null);
+  const [response, setResponse] = useState<TrainersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState(false);
-
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    position: 'Trainer', // Default for trainers
-    salary: '',
-    shift: '',
-    hire_date: '',
-    branch_id: '',
-    role: 'trainer' as StaffRole, // Fixed for trainers
-    status: 'active' as StaffStatus,
-    specialization: '',
-    experience_years: '',
-    certifications: '',
-    bio: '',
-  });
+  const [form, setForm] = useState({ ...BLANK_FORM });
 
   const loadTrainers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = (await getGymStaff({
-        q: debouncedQ,
-        status: query.status,
-        role: 'trainer',
+      const res = (await getGymTrainers({
         page: query.page,
-      })) as GymStaffResponse;
+        per_page: 15,
+        ...(query.status ? { status: query.status } : {}),
+        ...(debouncedQ ? { q: debouncedQ } : {}),
+      })) as TrainersResponse;
       setResponse(res);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -134,12 +101,28 @@ export default function GymTrainersPage() {
   }, [debouncedQ, query.page, query.status]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadTrainers();
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
+    const id = window.setTimeout(() => void loadTrainers(), 0);
+    return () => window.clearTimeout(id);
   }, [loadTrainers]);
+
+  function openEdit(row: GymTrainerSummary, view = false) {
+    setForm({
+      full_name: row.user?.name || '',
+      email: row.user?.email || '',
+      phone: row.phone || '',
+      specialization: row.specialization || '',
+      experience_years: row.experience_years?.toString() || '',
+      certifications: row.certifications || '',
+      bio: row.bio || '',
+      avatar: row.avatar || '',
+      salary: row.salary?.toString() || '',
+      shift: row.shift || '',
+      status: (row.status as 'active' | 'inactive' | 'suspended') || 'active',
+    });
+    setEditId(row.id);
+    setViewMode(view);
+    setFormOpen(true);
+  }
 
   const columns = useMemo(
     () => [
@@ -147,10 +130,12 @@ export default function GymTrainersPage() {
         id: 'user.name',
         header: 'Trainer',
         className: 'min-w-[260px]',
-        render: (row: StaffRow) => (
+        render: (row: GymTrainerSummary) => (
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900/5 text-sm font-semibold text-slate-900">
-              {getInitials(row.user?.name)}
+            <div className="flex h-12 w-12 items-center justify-center rounded-full overflow-hidden bg-slate-900/5 text-sm font-semibold text-slate-900 shrink-0">
+              {row.avatar
+                ? <img src={row.avatar} alt="" className="w-full h-full object-cover" />
+                : getInitials(row.user?.name)}
             </div>
             <div className="min-w-0">
               <div className="font-semibold text-slate-900">{row.user?.name || 'N/A'}</div>
@@ -162,87 +147,36 @@ export default function GymTrainersPage() {
       {
         id: 'specialization',
         header: 'Specialization',
-        render: (row: StaffRow) => <div className="text-sm">{row.specialization || 'N/A'}</div>,
+        render: (row: GymTrainerSummary) => <div className="text-sm">{row.specialization || 'N/A'}</div>,
       },
       {
         id: 'experience_years',
         header: 'Experience',
         className: 'w-[120px]',
-        render: (row: StaffRow) => <div className="text-sm">{row.experience_years ? `${row.experience_years} yrs` : 'N/A'}</div>,
-      },
-      {
-        id: 'shift',
-        header: 'Shift',
-        className: 'w-[120px]',
-        render: (row: StaffRow) => (
-          <div className="truncate text-sm text-slate-700">{row.shift || 'N/A'}</div>
+        render: (row: GymTrainerSummary) => (
+          <div className="text-sm">{row.experience_years ? `${row.experience_years} yrs` : 'N/A'}</div>
         ),
-      },
-      {
-        id: 'assigned_members_count',
-        header: 'Members',
-        className: 'w-[100px] text-center',
-        render: (row: StaffRow) => <div className="text-sm font-medium">{row.assigned_members_count ?? 0}</div>,
       },
       {
         id: 'status',
         header: 'Status',
         className: 'w-[120px]',
-        render: (row: StaffRow) => <StatusBadge value={row.status || 'inactive'} />,
+        render: (row: GymTrainerSummary) => <StatusBadge value={row.status || 'inactive'} />,
       },
       {
         id: 'actions',
         header: 'Actions',
         className: 'w-[220px] text-right',
-        render: (row: StaffRow) => (
+        render: (row: GymTrainerSummary) => (
           <div className="flex justify-end gap-2">
-            <button
-              onClick={() => {
-                setForm({
-                  name: row.user?.name || '',
-                  email: row.user?.email || '',
-                  phone: row.phone || '',
-                  position: row.position || '',
-                  salary: row.salary?.toString() || '',
-                  shift: row.shift || '',
-                  hire_date: row.hire_date || '',
-                  branch_id: row.branch_id?.toString() || '',
-                  role: (row.role as StaffRole) || 'trainer',
-                  status: (row.status as StaffStatus) || 'active',
-                  specialization: row.specialization || '',
-                  experience_years: row.experience_years?.toString() || '',
-                  certifications: row.certifications || '',
-                  bio: row.bio || '',
-                });
-                setViewMode(true);
-                setFormOpen(true);
-              }}
+            <Link
+              href={`/gym/trainers/${row.id}`}
               className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               View
-            </button>
+            </Link>
             <button
-              onClick={() => {
-                setForm({
-                  name: row.user?.name || '',
-                  email: row.user?.email || '',
-                  phone: row.phone || '',
-                  position: row.position || '',
-                  salary: row.salary?.toString() || '',
-                  shift: row.shift || '',
-                  hire_date: row.hire_date || '',
-                  branch_id: row.branch_id?.toString() || '',
-                  role: (row.role as StaffRole) || 'trainer',
-                  status: (row.status as StaffStatus) || 'active',
-                  specialization: row.specialization || '',
-                  experience_years: row.experience_years?.toString() || '',
-                  certifications: row.certifications || '',
-                  bio: row.bio || '',
-                });
-                setEditId(row.id);
-                setViewMode(false);
-                setFormOpen(true);
-              }}
+              onClick={() => openEdit(row, false)}
               className="rounded-full border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
             >
               Edit
@@ -251,63 +185,50 @@ export default function GymTrainersPage() {
               onClick={() => setDeleteId(row.id)}
               className="rounded-full border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
             >
-              Deactivate
+              Delete
             </button>
           </div>
         ),
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
     try {
       const payload = {
-        name: form.name,
+        full_name: form.full_name,
         email: form.email,
         phone: form.phone || null,
-        position: form.position,
-        salary: form.salary ? parseFloat(form.salary) : null,
-        shift: form.shift || null,
-        hire_date: form.hire_date,
-        branch_id: parseInt(form.branch_id, 10),
-        role: 'trainer' as StaffRole, // Always 'trainer' for this page
-        status: form.status,
         specialization: form.specialization || null,
         experience_years: form.experience_years ? parseInt(form.experience_years, 10) : null,
         certifications: form.certifications || null,
         bio: form.bio || null,
+        avatar: form.avatar || null,
+        salary: form.salary ? parseFloat(form.salary) : null,
+        shift: form.shift || null,
+        status: form.status,
       };
 
       if (editId) {
-        await updateGymStaff(editId, payload);
+        await updateGymTrainer(editId, payload);
+        toastSuccess('Trainer Updated', 'Trainer details have been updated successfully.');
       } else {
-        await createGymStaff(payload);
+        await createGymTrainer(payload);
+        toastSuccess('Trainer Added', 'New trainer has been created successfully.');
       }
 
       setFormOpen(false);
       setEditId(null);
-      setForm({
-        name: '',
-        email: '',
-        phone: '',
-        position: 'Trainer',
-        salary: '',
-        shift: '',
-        hire_date: '',
-        branch_id: '',
-        role: 'trainer',
-        status: 'active',
-        specialization: '',
-        experience_years: '',
-        certifications: '',
-        bio: '',
-      });
+      setForm({ ...BLANK_FORM });
       await loadTrainers();
     } catch (err) {
       setError(getErrorMessage(err));
+      toastError('Action Failed', getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -317,47 +238,32 @@ export default function GymTrainersPage() {
     if (!deleteId) return;
     setSubmitting(true);
     try {
-      await deleteGymStaff(deleteId);
+      await deleteGymTrainer(deleteId);
+      toastSuccess('Trainer Deleted', 'The trainer has been removed.');
       setDeleteId(null);
       await loadTrainers();
     } catch (err) {
       setError(getErrorMessage(err));
+      toastError('Delete Failed', getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (loading && !response) {
-    return <LoadingState />;
-  }
+  if (loading && !response) return <LoadingState />;
 
   return (
     <div className="space-y-6">
       <AdminPageHeader
         title="Trainers"
-        description="Manage gym trainers and their profiles."
+        description="Manage gym trainers. Trainers added here also appear on the public website."
         actions={
           <button
             type="button"
             onClick={() => {
               setViewMode(false);
               setEditId(null);
-              setForm({
-                name: '',
-                email: '',
-                phone: '',
-                position: 'Trainer',
-                salary: '',
-                shift: '',
-                hire_date: '',
-                branch_id: '',
-                role: 'trainer',
-                status: 'active',
-                specialization: '',
-                experience_years: '',
-                certifications: '',
-                bio: '',
-              });
+              setForm({ ...BLANK_FORM });
               setFormOpen(true);
             }}
             className="inline-flex items-center justify-center rounded-2xl bg-sky-500 px-5 py-3 text-sm font-medium text-white shadow-[0_14px_30px_rgba(14,165,233,0.28)] transition hover:-translate-y-0.5 hover:bg-sky-600"
@@ -374,128 +280,69 @@ export default function GymTrainersPage() {
       )}
 
       <div className="bg-slate-950 border border-slate-800 p-5 rounded-3xl shadow-sm text-slate-100">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field label="Search">
             <TextInput
               placeholder="Search by name or email..."
               value={query.q}
-              onChange={(event) => setQuery({ ...query, q: event.target.value, page: 1 })}
+              onChange={(e) => setQuery({ ...query, q: e.target.value, page: 1 })}
               className="bg-slate-900 text-white border-slate-700 placeholder:text-slate-500"
             />
           </Field>
           <Field label="Status">
             <SelectInput
               value={query.status}
-              onChange={(event) => setQuery({ ...query, status: event.target.value, page: 1 })}
+              onChange={(e) => setQuery({ ...query, status: e.target.value, page: 1 })}
               className="bg-slate-900 text-white border-slate-700"
             >
               <option value="">All Status</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
-              <option value="on_leave">On Leave</option>
-              <option value="terminated">Terminated</option>
+              <option value="suspended">Suspended</option>
             </SelectInput>
           </Field>
-          {/* Add more trainer-specific filters here if needed, e.g., specialization */}
         </div>
       </div>
 
       {response && (
         <div className="space-y-6">
-          <DataTable<StaffRow>
+          <DataTable<GymTrainerSummary>
             columns={columns}
             data={response.data}
             rowKey={(item) => item.id.toString()}
             emptyTitle="No trainers found"
-            emptyDescription="Try adjusting your search or filters."
+            emptyDescription="Add trainers via the 'Add Trainer' button or from the Website Builder."
             mobileRender={(row) => (
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900/5 text-sm font-semibold text-slate-900">
-                    {getInitials(row.user?.name)}
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full overflow-hidden bg-slate-900/5 text-sm font-semibold text-slate-900 shrink-0">
+                    {row.avatar
+                      ? <img src={row.avatar} alt="" className="w-full h-full object-cover" />
+                      : getInitials(row.user?.name)}
                   </div>
                   <div className="min-w-0">
                     <div className="truncate font-semibold text-slate-900">{row.user?.name || 'N/A'}</div>
                     <div className="truncate text-sm text-[color:var(--app-muted)]">
-                      {row.specialization || 'N/A'} • {row.experience_years ? `${row.experience_years} yrs` : 'N/A'}
+                      {row.specialization || 'N/A'} {row.experience_years ? `• ${row.experience_years} yrs` : ''}
                     </div>
                   </div>
                 </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <span className="text-base" role="img" aria-label="Phone">📞</span> {row.phone || 'N/A'}
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <span className="text-base" role="img" aria-label="Shift">🕒</span> {row.shift || 'N/A'}
-                  </div>
-                  <div className="flex items-center gap-2 font-medium text-slate-900">
-                    <span className="text-base" role="img" aria-label="Members">👥</span> Assigned Members: {row.assigned_members_count ?? 0}
-                  </div>
-                </div>
-
-                <div>
-                  <StatusBadge value={row.status || 'inactive'} />
-                </div>
-
+                <div><StatusBadge value={row.status || 'inactive'} /></div>
                 <div className="flex flex-wrap gap-2 pt-2">
-                  <button
-                    onClick={() => {
-                      setForm({
-                        name: row.user?.name || '',
-                        email: row.user?.email || '',
-                        phone: row.phone || '',
-                        position: row.position || '',
-                        salary: row.salary?.toString() || '',
-                        shift: row.shift || '',
-                        hire_date: row.hire_date || '',
-                        branch_id: row.branch_id?.toString() || '',
-                        role: (row.role as StaffRole) || 'trainer',
-                        status: (row.status as StaffStatus) || 'active',
-                        specialization: row.specialization || '',
-                        experience_years: row.experience_years?.toString() || '',
-                        certifications: row.certifications || '',
-                        bio: row.bio || '',
-                      });
-                      setViewMode(true);
-                      setFormOpen(true);
-                    }}
-                    className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                  <Link
+                    href={`/gym/trainers/${row.id}`}
+                    className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 text-center"
                   >
                     View
-                  </button>
+                  </Link>
                   <button
-                    onClick={() => {
-                      setForm({
-                        name: row.user?.name || '',
-                        email: row.user?.email || '',
-                        phone: row.phone || '',
-                        position: row.position || '',
-                        salary: row.salary?.toString() || '',
-                        shift: row.shift || '',
-                        hire_date: row.hire_date || '',
-                        branch_id: row.branch_id?.toString() || '',
-                        role: (row.role as StaffRole) || 'trainer',
-                        status: (row.status as StaffStatus) || 'active',
-                        specialization: row.specialization || '',
-                        experience_years: row.experience_years?.toString() || '',
-                        certifications: row.certifications || '',
-                        bio: row.bio || '',
-                      });
-                      setEditId(row.id);
-                      setViewMode(false);
-                      setFormOpen(true);
-                    }}
+                    onClick={() => openEdit(row, false)}
                     className="flex-1 rounded-xl border border-sky-200 bg-sky-50 py-2.5 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
-                  >
-                    Edit
-                  </button>
+                  >Edit</button>
                   <button
                     onClick={() => setDeleteId(row.id)}
                     className="flex-1 rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
-                  >
-                    Deactivate
-                  </button>
+                  >Delete</button>
                 </div>
               </div>
             )}
@@ -510,30 +357,33 @@ export default function GymTrainersPage() {
       {/* Create/Edit Modal */}
       <Modal
         open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditId(null);
-          setViewMode(false);
-        }}
+        onClose={() => { setFormOpen(false); setEditId(null); setViewMode(false); }}
         title={viewMode ? 'View Trainer' : editId ? 'Edit Trainer' : 'Add Trainer'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex justify-center mb-6">
+            <ImageUpload
+              value={form.avatar}
+              onChange={(url) => setForm({ ...form, avatar: url })}
+              label="Profile Picture"
+            />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="Name">
+            <Field label="Full Name *">
               <TextInput
-                value={form.name}
-                onChange={(event) => setForm({ ...form, name: event.target.value })}
-                placeholder="Full name"
+                value={form.full_name}
+                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                placeholder="e.g. John Doe"
                 required
                 disabled={viewMode}
               />
             </Field>
-            <Field label="Email">
+            <Field label="Email *">
               <TextInput
                 type="email"
                 value={form.email}
-                onChange={(event) => setForm({ ...form, email: event.target.value })}
-                placeholder="email@example.com"
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="trainer@gym.com"
                 required
                 disabled={viewMode}
               />
@@ -541,7 +391,7 @@ export default function GymTrainersPage() {
             <Field label="Phone">
               <TextInput
                 value={form.phone}
-                onChange={(event) => setForm({ ...form, phone: event.target.value })}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="Phone number"
                 disabled={viewMode}
               />
@@ -549,9 +399,8 @@ export default function GymTrainersPage() {
             <Field label="Specialization">
               <TextInput
                 value={form.specialization}
-                onChange={(event) => setForm({ ...form, specialization: event.target.value })}
-                placeholder="e.g., Weightlifting, Yoga"
-                required
+                onChange={(e) => setForm({ ...form, specialization: e.target.value })}
+                placeholder="e.g. Yoga, Weightlifting"
                 disabled={viewMode}
               />
             </Field>
@@ -559,100 +408,76 @@ export default function GymTrainersPage() {
               <TextInput
                 type="number"
                 value={form.experience_years}
-                onChange={(event) => setForm({ ...form, experience_years: event.target.value })}
-                placeholder="e.g., 5"
-                required
+                onChange={(e) => setForm({ ...form, experience_years: e.target.value })}
+                placeholder="e.g. 5"
                 disabled={viewMode}
               />
             </Field>
             <Field label="Certifications">
               <TextInput
                 value={form.certifications}
-                onChange={(event) => setForm({ ...form, certifications: event.target.value })}
-                placeholder="e.g., ACE, NASM"
+                onChange={(e) => setForm({ ...form, certifications: e.target.value })}
+                placeholder="e.g. ACE, NASM"
+                disabled={viewMode}
+              />
+            </Field>
+            <Field label="Shift / Timing">
+              <TextInput
+                value={form.shift}
+                onChange={(e) => setForm({ ...form, shift: e.target.value })}
+                placeholder="e.g. 9 AM - 6 PM"
+                disabled={viewMode}
+              />
+            </Field>
+            <Field label="Salary (monthly)">
+              <TextInput
+                type="number"
+                step="0.01"
+                value={form.salary}
+                onChange={(e) => setForm({ ...form, salary: e.target.value })}
+                placeholder="Monthly salary"
                 disabled={viewMode}
               />
             </Field>
             <Field label="Bio">
               <TextInput
                 value={form.bio}
-                onChange={(event) => setForm({ ...form, bio: event.target.value })}
+                onChange={(e) => setForm({ ...form, bio: e.target.value })}
                 placeholder="Short biography"
-                disabled={viewMode}
-              />
-            </Field>
-            <Field label="Salary">
-              <TextInput
-                type="number"
-                step="0.01"
-                value={form.salary}
-                onChange={(event) => setForm({ ...form, salary: event.target.value })}
-                placeholder="Monthly salary"
-                disabled={viewMode}
-              />
-            </Field>
-            <Field label="Shift">
-              <TextInput
-                value={form.shift}
-                onChange={(event) => setForm({ ...form, shift: event.target.value })}
-                placeholder="e.g., 9 AM - 6 PM"
-                disabled={viewMode}
-              />
-            </Field>
-            <Field label="Hire Date">
-              <TextInput
-                type="date"
-                value={form.hire_date}
-                onChange={(event) => setForm({ ...form, hire_date: event.target.value })}
-                required
-                disabled={viewMode}
-              />
-            </Field>
-            <Field label="Branch ID">
-              <TextInput
-                type="number"
-                value={form.branch_id}
-                onChange={(event) => setForm({ ...form, branch_id: event.target.value })}
-                placeholder="Branch ID"
-                required
                 disabled={viewMode}
               />
             </Field>
             <Field label="Status">
               <SelectInput
                 value={form.status}
-                onChange={(event) => setForm({ ...form, status: event.target.value as StaffStatus })}
+                onChange={(e) => setForm({ ...form, status: e.target.value as 'active' | 'inactive' | 'suspended' })}
                 required
                 disabled={viewMode}
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-                <option value="on_leave">On Leave</option>
-                <option value="terminated">Terminated</option>
+                <option value="suspended">Suspended</option>
               </SelectInput>
             </Field>
           </div>
+
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
-              onClick={() => {
-                setFormOpen(false);
-                setEditId(null);
-                setViewMode(false);
-              }}
+              onClick={() => { setFormOpen(false); setEditId(null); setViewMode(false); }}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
             >
               {viewMode ? 'Close' : 'Cancel'}
             </button>
-            {!viewMode ? (
+            {!viewMode && (
               <button
                 type="submit"
-                disabled={submitting || !form.specialization || !form.experience_years}
+                disabled={submitting || !form.full_name.trim() || !form.email.trim()}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
               >
-                {submitting ? 'Saving...' : 'Save'}
+                {submitting ? 'Saving...' : editId ? 'Update Trainer' : 'Add Trainer'}
               </button>
-            ) : null}
+            )}
           </div>
         </form>
       </Modal>
@@ -662,9 +487,9 @@ export default function GymTrainersPage() {
         open={deleteId !== null}
         onClose={() => setDeleteId(null)}
         onConfirm={handleDelete}
-        title="Deactivate Trainer"
-        description="Are you sure you want to deactivate this trainer? This action cannot be undone."
-        confirmLabel="Deactivate"
+        title="Delete Trainer"
+        description="Are you sure you want to delete this trainer? They will be removed from all sessions and the public website."
+        confirmLabel="Delete"
       />
     </div>
   );

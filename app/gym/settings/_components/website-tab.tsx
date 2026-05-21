@@ -1,10 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { updateGymProfile, type GymProfile } from '@/lib/gym';
+import { useState, useEffect } from 'react';
+import {
+  updateGymProfile,
+  type GymProfile,
+  getGymTrainers,
+  createGymTrainer,
+  deleteGymTrainer,
+  type GymTrainerSummary,
+} from '@/lib/gym';
 import { SettingField as Field, Input as TextInput } from './field';
 import { ImageUpload } from '@/components/admin/image-upload';
 import { getErrorMessage } from '@/lib/errors';
+import { useToast } from '@/components/admin/toast';
 import * as Icons from 'lucide-react';
 
 interface WebsiteTabProps {
@@ -13,6 +21,7 @@ interface WebsiteTabProps {
 }
 
 export function WebsiteTab({ initial, onRefresh }: WebsiteTabProps) {
+  const { error: toastError, success: toastSuccess } = useToast();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,10 +53,6 @@ export function WebsiteTab({ initial, onRefresh }: WebsiteTabProps) {
       { name: 'Monthly Basic', price: '$29/mo', features: ['Gym Access', 'Locker Room'] },
       { name: 'VIP Premium', price: '$79/mo', features: ['24/7 Access', 'Personal Trainer', 'Sauna Access'] }
     ],
-    trainers_data: initial.trainers_data ?? [
-      { name: 'John Doe', specialization: 'Strength & Conditioning', avatar: '' },
-      { name: 'Jane Smith', specialization: 'Yoga & Pilates Instruction', avatar: '' }
-    ]
   });
 
   // Services management helpers
@@ -77,15 +82,58 @@ export function WebsiteTab({ initial, onRefresh }: WebsiteTabProps) {
     setForm(prev => ({ ...prev, pricing_plans: (prev.pricing_plans || []).filter((_, i) => i !== idx) }));
   };
 
-  // Trainers helpers
-  const [newTrainer, setNewTrainer] = useState({ name: '', specialization: '', avatar: '' });
-  const addTrainer = () => {
-    if (!newTrainer.name.trim() || !newTrainer.specialization.trim()) return;
-    setForm(prev => ({ ...prev, trainers_data: [...(prev.trainers_data || []), newTrainer] }));
-    setNewTrainer({ name: '', specialization: '', avatar: '' });
+  // ── Real trainer data from API ──────────────────────────────────────────────
+  const [trainerList, setTrainerList] = useState<GymTrainerSummary[]>([]);
+  const [trainerLoading, setTrainerLoading] = useState(false);
+  const [trainerError, setTrainerError] = useState<string | null>(null);
+  const [newTrainer, setNewTrainer] = useState({ full_name: '', email: '', specialization: '', avatar: '' });
+  const [addingTrainer, setAddingTrainer] = useState(false);
+
+  useEffect(() => {
+    fetchTrainers();
+  }, []);
+
+  const fetchTrainers = async () => {
+    setTrainerLoading(true);
+    try {
+      const res = await getGymTrainers({ per_page: 100 }) as { data: GymTrainerSummary[] };
+      setTrainerList(res.data ?? []);
+    } catch {
+      // silently ignore
+    } finally {
+      setTrainerLoading(false);
+    }
   };
-  const removeTrainer = (idx: number) => {
-    setForm(prev => ({ ...prev, trainers_data: (prev.trainers_data || []).filter((_, i) => i !== idx) }));
+
+  const handleAddTrainer = async () => {
+    if (!newTrainer.full_name.trim() || !newTrainer.email.trim()) return;
+    setAddingTrainer(true);
+    setTrainerError(null);
+    try {
+      await createGymTrainer({
+        full_name: newTrainer.full_name.trim(),
+        email: newTrainer.email.trim(),
+        specialization: newTrainer.specialization.trim() || null,
+        avatar: newTrainer.avatar || undefined,
+      } as Parameters<typeof createGymTrainer>[0]);
+      setNewTrainer({ full_name: '', email: '', specialization: '', avatar: '' });
+      await fetchTrainers();
+    } catch (err) {
+      setTrainerError(getErrorMessage(err));
+    } finally {
+      setAddingTrainer(false);
+    }
+  };
+
+  const handleDeleteTrainer = async (id: number) => {
+    if (!confirm('Delete this trainer? This cannot be undone.')) return;
+    try {
+      await deleteGymTrainer(id);
+      setTrainerList(prev => prev.filter(t => t.id !== id));
+      toastSuccess('Trainer removed');
+    } catch (err) {
+      toastError('Delete Failed', getErrorMessage(err));
+    }
   };
 
   // Handle Form Submission
@@ -266,33 +314,94 @@ export function WebsiteTab({ initial, onRefresh }: WebsiteTabProps) {
         </div>
       </div>
 
-      {/* Trainers Manager */}
+      {/* Trainers Manager — Real API */}
       <div className="border-t border-slate-100 pt-6">
-        <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2"><Icons.Users className="h-5 w-5 text-pink-500" /> Trainers & Instructors</h3>
-        <div className="grid md:grid-cols-3 gap-3 mb-4 items-end">
-          <Field label="Trainer Name"><TextInput placeholder="e.g. John Doe" value={newTrainer.name} onChange={(e) => setNewTrainer(prev => ({ ...prev, name: e.target.value }))} /></Field>
-          <Field label="Specialization"><TextInput placeholder="e.g. Cardio Master" value={newTrainer.specialization} onChange={(e) => setNewTrainer(prev => ({ ...prev, specialization: e.target.value }))} /></Field>
-          <div className="md:col-span-1">
-            <ImageUpload label="Avatar Image" value={newTrainer.avatar} onChange={(url) => setNewTrainer(prev => ({ ...prev, avatar: url }))} />
+        <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2"><Icons.Users className="h-5 w-5 text-pink-500" /> Trainers &amp; Instructors</h3>
+        <p className="text-xs text-slate-500 mb-4">
+          Trainers added here are stored in your database and appear on the public website. You can also manage them under <strong>Trainers</strong> in the sidebar.
+        </p>
+
+        {/* Add Trainer Form */}
+        <div className="grid md:grid-cols-4 gap-3 mb-4 items-end">
+          <Field label="Full Name *">
+            <TextInput
+              placeholder="e.g. John Doe"
+              value={newTrainer.full_name}
+              onChange={(e) => setNewTrainer(prev => ({ ...prev, full_name: e.target.value }))}
+            />
+          </Field>
+          <Field label="Email *">
+            <TextInput
+              type="email"
+              placeholder="trainer@gym.com"
+              value={newTrainer.email}
+              onChange={(e) => setNewTrainer(prev => ({ ...prev, email: e.target.value }))}
+            />
+          </Field>
+          <Field label="Specialization">
+            <TextInput
+              placeholder="e.g. Yoga & Cardio"
+              value={newTrainer.specialization}
+              onChange={(e) => setNewTrainer(prev => ({ ...prev, specialization: e.target.value }))}
+            />
+          </Field>
+          <div>
+            <ImageUpload
+              label="Avatar Image"
+              value={newTrainer.avatar}
+              onChange={(url) => setNewTrainer(prev => ({ ...prev, avatar: url }))}
+            />
           </div>
         </div>
-        <button type="button" onClick={addTrainer} className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-900 border border-slate-200 text-sm font-semibold hover:bg-slate-200 transition mb-6">
-          + Add Trainer Profile
+
+        {trainerError && (
+          <p className="text-sm text-rose-600 mb-3 flex items-center gap-1.5">
+            <Icons.AlertCircle className="h-4 w-4" />{trainerError}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={handleAddTrainer}
+          disabled={addingTrainer || !newTrainer.full_name.trim() || !newTrainer.email.trim()}
+          className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-900 border border-slate-200 text-sm font-semibold hover:bg-slate-200 transition mb-6 disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {addingTrainer ? <Icons.Loader2 className="h-4 w-4 animate-spin" /> : <Icons.Plus className="h-4 w-4" />}
+          Add Trainer to Database
         </button>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {form.trainers_data?.map((trainer, idx) => (
-            <div key={idx} className="flex gap-4 p-4 rounded-2xl border border-slate-200 bg-slate-50 relative">
-              <button type="button" onClick={() => removeTrainer(idx)} className="absolute top-4 right-4 text-rose-500 hover:text-rose-700"><Icons.Trash2 className="h-4 w-4" /></button>
-              <div className="w-16 h-16 rounded-full overflow-hidden border border-slate-200 shrink-0 bg-white flex items-center justify-center text-slate-400">
-                {trainer.avatar ? <img src={trainer.avatar} alt={trainer.name} className="w-full h-full object-cover" /> : <Icons.User className="h-8 w-8" />}
+
+        {/* Trainer List */}
+        {trainerLoading ? (
+          <p className="text-sm text-slate-400 flex items-center gap-2"><Icons.Loader2 className="h-4 w-4 animate-spin" />Loading trainers...</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {trainerList.length === 0 && (
+              <p className="text-sm text-slate-400 col-span-2">No trainers yet. Add one above.</p>
+            )}
+            {trainerList.map((trainer) => (
+              <div key={trainer.id} className="flex gap-4 p-4 rounded-2xl border border-slate-200 bg-slate-50 relative">
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTrainer(trainer.id)}
+                  className="absolute top-4 right-4 text-rose-500 hover:text-rose-700"
+                  title="Delete trainer"
+                >
+                  <Icons.Trash2 className="h-4 w-4" />
+                </button>
+                <div className="w-16 h-16 rounded-full overflow-hidden border border-slate-200 shrink-0 bg-white flex items-center justify-center text-slate-400">
+                  {trainer.avatar
+                    ? <img src={trainer.avatar} alt={trainer.user?.name ?? ''} className="w-full h-full object-cover" />
+                    : <Icons.User className="h-8 w-8" />}
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-bold text-slate-900 truncate">{trainer.user?.name}</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">{trainer.specialization ?? '—'}</p>
+                  <p className="text-xs text-slate-400 mt-0.5 truncate">{trainer.user?.email}</p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-bold text-slate-900">{trainer.name}</h4>
-                <p className="text-xs text-slate-500 mt-1">{trainer.specialization}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* SEO Configuration Options */}

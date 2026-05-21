@@ -25,6 +25,7 @@ import {
   type PaginatedResponse,
 } from '@/lib/gym';
 import { getErrorMessage } from '@/lib/errors';
+import { useToast } from '@/components/admin/toast';
 
 type PaymentQuery = {
   start_date: string;
@@ -153,6 +154,7 @@ export default function GymBillingPage() {
     page: 1,
   });
   const debouncedQ = useDebouncedValue(query.q, 350);
+  const { success, error: toastError } = useToast();
 
   const [dashboard, setDashboard] = useState<GymBillingDashboard | null>(null);
   const [payments, setPayments] = useState<PaginatedResponse<GymBillingPayment> | null>(null);
@@ -163,9 +165,7 @@ export default function GymBillingPage() {
   const [loading, setLoading] = useState(true);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [form, setForm] = useState<PaymentForm>(() => emptyForm());
+      const [form, setForm] = useState<PaymentForm>(() => emptyForm());
 
   const membershipOptions = useMemo(() => {
     const memberships = new Map<number, GymMemberMembershipSummary>();
@@ -193,7 +193,7 @@ export default function GymBillingPage() {
       const memberResponse = (await getGymMembers({ page: 1, per_page: 100, status: 'active' })) as PaginatedResponse<GymMemberSummary>;
       setMembers(memberResponse.data ?? []);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastError(getErrorMessage(err));
     } finally {
       setOptionsLoading(false);
     }
@@ -201,8 +201,7 @@ export default function GymBillingPage() {
 
   const loadBilling = useCallback(async () => {
     setLoading(true);
-    setError(null);
-    try {
+        try {
       const [dashboardResponse, paymentsResponse, invoicesResponse] = await Promise.all([
         getGymBillingDashboard(),
         getGymBillingPayments({
@@ -221,7 +220,7 @@ export default function GymBillingPage() {
       setPayments(paymentsResponse as PaginatedResponse<GymBillingPayment>);
       setInvoices(invoicesResponse as PaginatedResponse<GymBillingInvoice>);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -255,7 +254,7 @@ export default function GymBillingPage() {
         const response = (await getGymMember(Number(form.member_id))) as { data: GymMemberSummary };
         if (!cancelled) setSelectedMember(response.data);
       } catch (err) {
-        if (!cancelled) setError(getErrorMessage(err));
+        if (!cancelled) toastError(getErrorMessage(err));
       }
     })();
 
@@ -352,17 +351,15 @@ export default function GymBillingPage() {
     event.preventDefault();
 
     setSubmitting(true);
-    setError(null);
-    setNotice(null);
-
+        
     try {
       await createGymBillingPayment(payloadFromForm());
-      setNotice('Payment recorded and invoice status updated.');
+      success('Payment recorded and invoice status updated.');
       setForm(emptyForm());
       setSelectedMember(null);
       await loadBilling();
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastError(getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -389,17 +386,9 @@ export default function GymBillingPage() {
         }
       />
 
-      {error ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
-          {error}
-        </div>
-      ) : null}
+      
 
-      {notice ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-          {notice}
-        </div>
-      ) : null}
+      
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricTile label="Total Revenue" value={formatCurrency(dashboard?.total_revenue ?? 0)} detail="Collected member payments" tone="emerald" />

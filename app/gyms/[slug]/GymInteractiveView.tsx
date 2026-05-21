@@ -100,6 +100,13 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
   // Gallery Filter State
   const [activeGalleryTab, setActiveGalleryTab] = useState<string>('all');
 
+  useEffect(() => {
+    document.documentElement.style.scrollBehavior = 'smooth';
+    return () => {
+      document.documentElement.style.scrollBehavior = '';
+    };
+  }, []);
+
   const template = gym.website_template || 'modern';
   const mapUrl = `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${gym.latitude},${gym.longitude}`;
 
@@ -240,9 +247,13 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
     return combined.filter(img => img.category === activeGalleryTab);
   };
 
-  // Fetch active trainers roster (with fallback)
+  // Fetch active trainers roster (prefer real DB trainers, fallback to trainers_data blob, then DEFAULT_TRAINERS)
   const getTrainers = () => {
-    return gym.trainers_data && gym.trainers_data.length > 0 ? gym.trainers_data : DEFAULT_TRAINERS;
+    // Real DB trainers (from /api/gyms/:slug which now returns trainers from the trainers table)
+    if (gym.trainers && gym.trainers.length > 0) return gym.trainers;
+    // Legacy: trainers saved as JSON blob in tenants table
+    if (gym.trainers_data && gym.trainers_data.length > 0) return gym.trainers_data;
+    return DEFAULT_TRAINERS;
   };
 
   // Fetch dynamic classes (with fallback)
@@ -268,20 +279,38 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
       }`}>
         <div className="mx-auto max-w-7xl px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            {gym.logo_url ? (
-              <img src={gym.logo_url} alt={gym.name} className="h-10 w-10 object-contain rounded-lg" />
+            {(gym.header_data?.show_logo_image !== false) && (gym.header_data?.logo_image || gym.logo_url) ? (
+              <img src={gym.header_data?.logo_image || gym.logo_url} alt={gym.name} className="h-10 w-10 object-contain rounded-lg" />
             ) : (
               <div className={`h-10 w-10 rounded-lg flex items-center justify-center font-black shadow-sm ${
                 template === 'dark' ? 'bg-orange-600 text-white' :
                 template === 'glass' ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white' : 'bg-slate-900 text-white'
-              }`}>{gym.name[0]}</div>
+              }`}>{(gym.header_data?.logo_text || gym.name)?.[0] || 'G'}</div>
             )}
-            <span className={`font-black text-lg tracking-tight ${template === 'dark' ? 'text-white' : ''}`}>{gym.name}</span>
+            <span className={`font-black text-lg tracking-tight ${template === 'dark' ? 'text-white' : ''}`}>{gym.header_data?.logo_text || gym.name}</span>
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Dynamic Menu Items */}
+          {gym.header_data?.menu_items && gym.header_data.menu_items.length > 0 && (
+            <nav className="hidden md:flex items-center gap-6">
+              {gym.header_data.menu_items.map((item: any, idx: number) => (
+                <a 
+                  key={idx} 
+                  href={item.link || '#'} 
+                  className={`text-sm font-semibold transition ${
+                    template === 'dark' ? 'text-zinc-400 hover:text-orange-500' :
+                    template === 'glass' ? 'text-slate-400 hover:text-cyan-400' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
+          )}
+
+          <div className="flex items-center gap-2 sm:gap-3">
             {gym.social_links?.instagram && (
-              <a href={gym.social_links.instagram} target="_blank" rel="noopener noreferrer" className={`transition ${template === 'dark' ? 'hover:text-orange-500 text-zinc-400' : 'hover:text-pink-500 text-slate-500'}`}>
+              <a href={gym.social_links.instagram} target="_blank" rel="noopener noreferrer" className={`transition hidden sm:block ${template === 'dark' ? 'hover:text-orange-500 text-zinc-400' : 'hover:text-pink-500 text-slate-500'}`}>
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                   <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
                   <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
@@ -290,29 +319,70 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
               </a>
             )}
             {gym.social_links?.facebook && (
-              <a href={gym.social_links.facebook} target="_blank" rel="noopener noreferrer" className={`transition ${template === 'dark' ? 'hover:text-orange-500 text-zinc-400' : 'hover:text-blue-500 text-slate-500'}`}>
+              <a href={gym.social_links.facebook} target="_blank" rel="noopener noreferrer" className={`transition hidden sm:block ${template === 'dark' ? 'hover:text-orange-500 text-zinc-400' : 'hover:text-blue-500 text-slate-500'}`}>
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                   <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
                 </svg>
               </a>
             )}
-            <a 
-              href={`https://www.google.com/maps/dir/?api=1&destination=${gym.latitude},${gym.longitude}`} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className={`hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black transition shadow-sm ${
-                template === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' :
-                template === 'glass' ? 'bg-white/10 hover:bg-white/20 text-white border border-white/15' : 'bg-slate-900 hover:bg-slate-800 text-white'
-              }`}
-            >
-              Get Directions <ExternalLink className="h-3 w-3" />
-            </a>
+            
+            {/* Dynamic CTA Button or fallback to Get Directions */}
+            {gym.header_data?.buttons && gym.header_data.buttons.length > 0 ? (
+              gym.header_data.buttons.map((btn: any, btnIdx: number) => {
+                const isOutline = btn.variant === 'outline';
+                let btnStyle = '';
+                if (template === 'dark') {
+                  btnStyle = isOutline 
+                    ? 'border border-zinc-700 hover:border-zinc-500 text-zinc-300 bg-transparent hover:bg-zinc-900/40' 
+                    : 'bg-orange-600 hover:bg-orange-700 text-white';
+                } else if (template === 'glass') {
+                  btnStyle = isOutline 
+                    ? 'border border-white/20 hover:bg-white/5 text-white' 
+                    : 'bg-white/10 hover:bg-white/20 text-white border border-white/15';
+                } else {
+                  btnStyle = isOutline 
+                    ? 'border border-slate-350 hover:bg-slate-50 text-slate-700 bg-transparent' 
+                    : 'bg-slate-900 hover:bg-slate-800 text-white';
+                }
+                return (
+                  <a 
+                    key={btnIdx}
+                    href={btn.link || '#'} 
+                    className={`hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black transition shadow-sm ${btnStyle}`}
+                  >
+                    {btn.text}
+                  </a>
+                );
+              })
+            ) : gym.header_data?.button_text ? (
+              <a 
+                href={gym.header_data.button_link || '#pricing'} 
+                className={`hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black transition shadow-sm ${
+                  template === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' :
+                  template === 'glass' ? 'bg-white/10 hover:bg-white/20 text-white border border-white/15' : 'bg-slate-900 hover:bg-slate-800 text-white'
+                }`}
+              >
+                {gym.header_data.button_text}
+              </a>
+            ) : (
+              <a 
+                href={`https://www.google.com/maps/dir/?api=1&destination=${gym.latitude},${gym.longitude}`} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className={`hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black transition shadow-sm ${
+                  template === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' :
+                  template === 'glass' ? 'bg-white/10 hover:bg-white/20 text-white border border-white/15' : 'bg-slate-900 hover:bg-slate-800 text-white'
+                }`}
+              >
+                Get Directions <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
         </div>
       </header>
 
       {/* ────────────────── DYNAMIC PREMIUM HERO SECTION ────────────────── */}
-      <section className={`relative overflow-hidden py-24 sm:py-36 border-b transition ${
+      <section id="home" className={`relative overflow-hidden py-24 sm:py-36 border-b transition ${
         template === 'dark' ? 'bg-black border-zinc-900' :
         template === 'glass' ? 'bg-gradient-to-b from-slate-950 to-slate-900 border-white/5' : 'bg-white border-slate-200/60'
       }`}>
@@ -388,7 +458,7 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
         
         {/* SERVICES AND WORKOUTS */}
         {gym.services?.length > 0 && (
-          <section className="space-y-12">
+          <section id="services" className="space-y-12">
             <div className="text-center space-y-2">
               <h2 className={`text-3xl font-black tracking-tight ${template === 'dark' ? 'uppercase text-white font-extrabold' : 'text-slate-900'}`}>
                 Our Premium Workout Services
@@ -424,7 +494,7 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
         )}
 
         {/* ────────────────── FEATURED CLASSES (NEW!) ────────────────── */}
-        <section className="space-y-12">
+        <section id="classes" className="space-y-12">
           <div className="flex flex-wrap gap-4 items-end justify-between border-b border-zinc-900 pb-6">
             <div className="space-y-2">
               <h2 className={`text-3xl font-black tracking-tight ${template === 'dark' ? 'uppercase text-white font-extrabold' : 'text-slate-900'}`}>
@@ -486,7 +556,7 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
         </section>
 
         {/* ────────────────── INTERACTIVE BMI CALCULATOR WIDGET (NEW!) ────────────────── */}
-        <section className={`relative rounded-[2.5rem] overflow-hidden border p-8 sm:p-12 transition ${
+        <section id="bmi" className={`relative rounded-[2.5rem] overflow-hidden border p-8 sm:p-12 transition ${
           template === 'dark' ? 'bg-black border-zinc-800' :
           template === 'glass' ? 'bg-white/5 border-white/10 backdrop-blur-md' : 'bg-white border-slate-200'
         }`}>
@@ -648,7 +718,7 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
 
         {/* DYNAMIC MEMBERSHIP PLANS DIRECT GATEWAY CHECKOUT */}
         {gym.pricing_plans?.length > 0 && (
-          <section className="space-y-12">
+          <section id="pricing" className="space-y-12">
             <div className="text-center space-y-2">
               <h2 className={`text-3xl font-black tracking-tight ${template === 'dark' ? 'uppercase text-white font-extrabold' : 'text-slate-900'}`}>
                 Select Membership & Join Online
@@ -708,7 +778,7 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
         )}
 
         {/* ────────────────── EXPERT TRAINERS SECTION ────────────────── */}
-        <section className="space-y-12">
+        <section id="trainers" className="space-y-12">
           <div className="flex flex-wrap gap-4 items-end justify-between border-b border-zinc-900 pb-6">
             <div className="space-y-2">
               <h2 className={`text-3xl font-black tracking-tight ${template === 'dark' ? 'uppercase text-white font-extrabold' : 'text-slate-900'}`}>
@@ -779,7 +849,7 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
         </section>
 
         {/* ────────────────── FILTERABLE OUR FACILITY GALLERY SECTION ────────────────── */}
-        <section className="space-y-12">
+        <section id="gallery" className="space-y-12">
           <div className="flex flex-wrap gap-6 items-end justify-between border-b border-zinc-900 pb-6">
             <div className="space-y-2">
               <h2 className={`text-3xl font-black tracking-tight ${template === 'dark' ? 'uppercase text-white font-extrabold' : 'text-slate-900'}`}>
@@ -836,7 +906,7 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
         </section>
 
         {/* ────────────────── LATEST POSTS / BLOG SECTION (NEW!) ────────────────── */}
-        <section className="space-y-12">
+        <section id="blogs" className="space-y-12">
           <div className="flex flex-wrap gap-4 items-end justify-between border-b border-zinc-900 pb-6">
             <div className="space-y-2">
               <h2 className={`text-3xl font-black tracking-tight ${template === 'dark' ? 'uppercase text-white font-extrabold' : 'text-slate-900'}`}>
@@ -904,7 +974,7 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
         </section>
 
         {/* MEMBER TESTIMONIAL FEEDBACK */}
-        <section className="space-y-12">
+        <section id="testimonials" className="space-y-12">
           <div className="flex flex-wrap gap-4 items-center justify-between border-b border-zinc-900 pb-6">
             <div className="space-y-2">
               <h2 className={`text-3xl font-black tracking-tight flex items-center gap-2 ${template === 'dark' ? 'text-white uppercase' : 'text-slate-900'}`}>
@@ -962,7 +1032,7 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
         </section>
 
         {/* CONTACT AND EMBEDDED MAP DETAILS */}
-        <section className="grid md:grid-cols-3 gap-8 border-t border-slate-200/60 dark:border-zinc-900 pt-16">
+        <section id="contact" className="grid md:grid-cols-3 gap-8 border-t border-slate-200/60 dark:border-zinc-900 pt-16">
           <div className={`p-8 rounded-3xl border flex flex-col justify-between ${
             template === 'dark' ? 'bg-zinc-900/30 border-zinc-800' :
             template === 'glass' ? 'bg-white/5 border-white/10 backdrop-blur-md' : 'bg-white border-slate-200 shadow-sm'
@@ -1050,12 +1120,155 @@ export default function GymInteractiveView({ gym: initialGym, slug }: GymInterac
       </main>
 
       {/* ────────────────── FOOTER RENDER ────────────────── */}
-      <footer className={`py-12 border-t mt-24 text-center text-xs text-slate-500 transition ${
+      <footer className={`border-t mt-24 transition duration-300 ${
         template === 'dark' ? 'border-zinc-900 bg-black text-zinc-400' :
-        template === 'glass' ? 'border-white/5 bg-slate-950/50' : 'border-slate-200/60 bg-white'
+        template === 'glass' ? 'border-white/5 bg-slate-950 text-slate-100' : 'border-slate-200 bg-white text-slate-600'
       }`}>
-        <p>© {new Date().getFullYear()} {gym.name}. All rights reserved.</p>
-        <p className="mt-2 font-bold uppercase tracking-wider">Premium Gym SaaS Network discovery portal.</p>
+        <div className="mx-auto max-w-7xl px-4 py-16">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+            
+            {/* Column 1: Branding, About & Social Links */}
+            <div className="space-y-4 md:col-span-2">
+              <div className="flex items-center gap-3">
+                {(gym.header_data?.show_logo_image !== false) && (gym.header_data?.logo_image || gym.logo_url) ? (
+                  <img src={gym.header_data?.logo_image || gym.logo_url} alt={gym.name} className="h-9 w-9 object-contain rounded-lg" />
+                ) : (
+                  <div className={`h-9 w-9 rounded-lg flex items-center justify-center font-black shadow-sm text-sm ${
+                    template === 'dark' ? 'bg-orange-600 text-white' :
+                    template === 'glass' ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white' : 'bg-slate-900 text-white'
+                  }`}>{(gym.header_data?.logo_text || gym.name)?.[0] || 'G'}</div>
+                )}
+                <span className={`font-black text-base tracking-tight ${template === 'dark' ? 'text-white' : ''}`}>{gym.header_data?.logo_text || gym.name}</span>
+              </div>
+              <p className="text-xs leading-relaxed max-w-sm">
+                {gym.footer_data?.about_text || 'Premium fitness facilities, custom-tailored conditioning programs, and elite trainers dedicated to your performance.'}
+              </p>
+              
+              {/* Social links icons row */}
+              <div className="flex items-center gap-3 pt-2">
+                {gym.social_links?.facebook && (
+                  <a href={gym.social_links.facebook} target="_blank" rel="noopener noreferrer" className={`p-2 rounded-full border transition ${
+                    template === 'dark' ? 'border-zinc-800 bg-zinc-950 hover:text-orange-500 hover:border-orange-500 text-zinc-400' :
+                    template === 'glass' ? 'border-white/10 bg-white/5 hover:text-cyan-400 hover:border-cyan-400 text-slate-400' :
+                    'border-slate-200 bg-slate-50 hover:text-slate-900 hover:border-slate-400 text-slate-500'
+                  }`}>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+                    </svg>
+                  </a>
+                )}
+                {gym.social_links?.instagram && (
+                  <a href={gym.social_links.instagram} target="_blank" rel="noopener noreferrer" className={`p-2 rounded-full border transition ${
+                    template === 'dark' ? 'border-zinc-800 bg-zinc-950 hover:text-orange-500 hover:border-orange-500 text-zinc-400' :
+                    template === 'glass' ? 'border-white/10 bg-white/5 hover:text-cyan-400 hover:border-cyan-400 text-slate-400' :
+                    'border-slate-200 bg-slate-50 hover:text-slate-900 hover:border-slate-400 text-slate-500'
+                  }`}>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                    </svg>
+                  </a>
+                )}
+                {gym.social_links?.youtube && (
+                  <a href={gym.social_links.youtube} target="_blank" rel="noopener noreferrer" className={`p-2 rounded-full border transition ${
+                    template === 'dark' ? 'border-zinc-800 bg-zinc-950 hover:text-orange-500 hover:border-orange-500 text-zinc-400' :
+                    template === 'glass' ? 'border-white/10 bg-white/5 hover:text-cyan-400 hover:border-cyan-400 text-slate-400' :
+                    'border-slate-200 bg-slate-50 hover:text-slate-900 hover:border-slate-400 text-slate-500'
+                  }`}>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                      <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.41 19c1.71.46 8.59.46 8.59.46s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.96 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33z"></path>
+                      <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
+                    </svg>
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Columns 2-4: Dynamic Custom Columns */}
+            {gym.footer_data?.columns && gym.footer_data.columns.length > 0 ? (
+              gym.footer_data.columns.slice(0, 3).map((col: any, colIdx: number) => (
+                <div key={colIdx} className="space-y-4 text-left">
+                  <h4 className={`text-xs font-black uppercase tracking-wider ${
+                    template === 'dark' ? 'text-white' : 'text-slate-900'
+                  }`}>
+                    {col.title}
+                  </h4>
+                  <ul className="space-y-2 text-xs">
+                    {(col.links || []).map((link: any, linkIdx: number) => (
+                      <li key={linkIdx}>
+                        <a 
+                          href={link.link || '#'} 
+                          className={`transition ${
+                            template === 'dark' ? 'hover:text-orange-500 text-zinc-400' :
+                            template === 'glass' ? 'hover:text-cyan-400 text-slate-300' :
+                            'hover:text-slate-900 text-slate-500'
+                          }`}
+                        >
+                          {link.label}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            ) : (
+              // Default Fallback Column 2: Quick Links
+              <div className="space-y-4 text-left">
+                <h4 className={`text-xs font-black uppercase tracking-wider ${
+                  template === 'dark' ? 'text-white' : 'text-slate-900'
+                }`}>
+                  Quick Links
+                </h4>
+                <ul className="space-y-2 text-xs">
+                  <li>
+                    <a href="#about" className={`transition ${template === 'dark' ? 'hover:text-orange-500 text-zinc-400' : template === 'glass' ? 'hover:text-cyan-400 text-slate-300' : 'hover:text-slate-900 text-slate-500'}`}>About Us</a>
+                  </li>
+                  <li>
+                    <a href="#features" className={`transition ${template === 'dark' ? 'hover:text-orange-500 text-zinc-400' : template === 'glass' ? 'hover:text-cyan-400 text-slate-300' : 'hover:text-slate-900 text-slate-500'}`}>Programs</a>
+                  </li>
+                  <li>
+                    <a href="#pricing" className={`transition ${template === 'dark' ? 'hover:text-orange-500 text-zinc-400' : template === 'glass' ? 'hover:text-cyan-400 text-slate-300' : 'hover:text-slate-900 text-slate-500'}`}>Pricing</a>
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            {/* Column 5: Beautiful Opening Hours */}
+            {gym.opening_hours && Object.keys(gym.opening_hours).length > 0 && (
+              <div className="space-y-4 text-left">
+                <h4 className={`text-xs font-black uppercase tracking-wider ${
+                  template === 'dark' ? 'text-white' : 'text-slate-900'
+                }`}>
+                  Opening Hours
+                </h4>
+                <ul className="space-y-1.5 text-xs text-slate-400">
+                  {Object.entries(gym.opening_hours).map(([day, hrs]: any) => (
+                    <li key={day} className="flex justify-between border-b border-dashed border-slate-200 dark:border-zinc-800 pb-1">
+                      <span className="font-semibold text-slate-500 dark:text-zinc-500">{day}</span>
+                      <span className={`${template === 'dark' ? 'text-zinc-300' : 'text-slate-700'}`}>{hrs}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+          </div>
+
+          {/* Bottom strip */}
+          <div className={`mt-12 pt-8 border-t flex flex-col sm:flex-row items-center justify-between text-xs gap-4 ${
+            template === 'dark' ? 'border-zinc-900 text-zinc-500' :
+            template === 'glass' ? 'border-white/5 text-slate-500' : 'border-slate-200 text-slate-450'
+          }`}>
+            <p>
+              {gym.footer_data?.copyright_text || `© ${new Date().getFullYear()} ${gym.name}. All rights reserved.`}
+            </p>
+            <div className="flex gap-4">
+              <span className="hover:underline cursor-pointer">Privacy Policy</span>
+              <span className="hover:underline cursor-pointer">Terms of Service</span>
+            </div>
+          </div>
+        </div>
       </footer>
 
       {/* ────────────────── MODAL: Direct Plan Subscription Checkout ────────────────── */}

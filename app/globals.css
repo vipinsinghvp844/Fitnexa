@@ -63,3 +63,15 @@ html.dark body {
 ::selection {
   background: rgba(14, 165, 233, 0.22);
 }
+
+/* Toast progress bar animation */
+@keyframes toast-progress {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+.animate-toast-progress {
+  animation-name: toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}

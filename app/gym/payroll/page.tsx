@@ -4,6 +4,7 @@ import { AdminPageHeader } from '@/components/admin/page-header';
 import { DashboardIcon } from '@/components/dashboard/dashboard-icons';
 import { LoadingState } from '@/components/admin/loading-state';
 import { getErrorMessage } from '@/lib/errors';
+import { useToast } from '@/components/admin/toast';
 import {
   getPayrollDashboard, getPayrolls, generatePayroll, updatePayroll,
   markPayrollPaid, deletePayroll, type PayrollRecord, type PayrollDashboard,
@@ -14,6 +15,7 @@ const fmt = (n: number) => '₹' + Number(n).toLocaleString('en-IN', { maximumFr
 const now = new Date();
 
 export default function PayrollPage() {
+  const { error: toastError, success: toastSuccess } = useToast();
   const [tab, setTab] = useState<'dashboard'|'list'>('dashboard');
   const [dashboard, setDashboard] = useState<PayrollDashboard | null>(null);
   const [payrolls, setPayrolls] = useState<PayrollRecord[]>([]);
@@ -41,15 +43,15 @@ export default function PayrollPage() {
 
   const handleMarkPaid = async (id: number) => {
     if (!confirm('Mark this payroll as paid? An expense entry will be auto-created.')) return;
-    try { setActionId(id); await markPayrollPaid(id); await load(); }
-    catch(e) { alert(getErrorMessage(e)); }
+    try { setActionId(id); await markPayrollPaid(id); await load(); toastSuccess('Payroll marked as paid'); }
+    catch(e) { toastError('Action Failed', getErrorMessage(e)); }
     finally { setActionId(null); }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this pending payroll?')) return;
-    try { setActionId(id); await deletePayroll(id); await load(); }
-    catch(e) { alert(getErrorMessage(e)); }
+    try { setActionId(id); await deletePayroll(id); await load(); toastSuccess('Payroll record deleted'); }
+    catch(e) { toastError('Delete Failed', getErrorMessage(e)); }
     finally { setActionId(null); }
   };
 
