@@ -40,6 +40,7 @@ export interface GymClassSummary {
 
 export interface GymMemberSummary {
   id: number;
+  profile_picture?: string | null;
   user_id: number;
   user: {
     id: number | null;
@@ -92,14 +93,24 @@ export interface GymMemberMembershipSummary {
 
 export interface GymTrainerSummary {
   id: number;
+  avatar?: string | null;
+  phone?: string | null;
+  specialization?: string | null;
+  experience_years?: number | null;
+  shift?: string | null;
+  salary?: string | number | null;
+  bio?: string | null;
+  facebook_url?: string | null;
+  instagram_url?: string | null;
+  twitter_url?: string | null;
+  linkedin_url?: string | null;
+  certifications?: string | null;
+  status?: string | null;
   user: {
     id: number | null;
     name: string | null;
     email: string | null;
   };
-  specialization: string | null;
-  experience_years: number | null;
-  certifications: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -240,6 +251,12 @@ export interface GymMembershipPlanSummary {
 
 export interface GymEmployeeSummary {
   id: number;
+  avatar?: string | null;
+  phone?: string | null;
+  specialization?: string | null;
+  experience_years?: number | null;
+  certifications?: string | null;
+  bio?: string | null;
   user_id: number | null;
   user: {
     id: number | null;
@@ -548,6 +565,7 @@ export interface CreateGymMemberPayload {
   name: string;
   email: string;
   phone?: string | null;
+  profile_picture?: string | null;
   gender?: 'male' | 'female' | 'other' | null;
   dob?: string | null; // date (YYYY-MM-DD)
   emergency_contact?: string | null;
@@ -573,6 +591,7 @@ export function deleteGymMember(memberId: number) {
 }
 
 export interface CreateGymTrainerPayload {
+  avatar?: string | null;
   full_name: string;
   email: string;
   phone?: string | null;
@@ -850,6 +869,8 @@ export function deletePayroll(id: number) {
 
 export interface GymProfile {
   id: number;
+  header_data?: any;
+  footer_data?: any;
   name: string;
   slug?: string;
   email: string | null;
@@ -992,14 +1013,6 @@ export interface PlatformSubscription {
   is_active: boolean;
 }
 
-export async function getPlatformPlans() {
-  return request('/api/gym/platform/plans', { method: 'GET' });
-}
-
-export async function getCurrentPlatformSubscription() {
-  return request('/api/gym/platform/subscription', { method: 'GET' });
-}
-
 export interface PlatformCouponPreview {
   coupon: {
     id: number;
@@ -1018,12 +1031,19 @@ export interface PlatformCouponPreview {
   final_amount: number;
 }
 
+export async function getPlatformPlans() {
+  return request('/api/gym/platform/plans', { method: 'GET' });
+}
+
+export async function getCurrentPlatformSubscription() {
+  return request('/api/gym/platform/subscription', { method: 'GET' });
+}
+
 export async function validatePlatformCoupon(plan_id: number, coupon_code: string) {
   const response = await request('/api/gym/platform/coupon/validate', {
     method: 'POST',
     body: JSON.stringify({ plan_id, coupon_code }),
   });
-
   return response.data as PlatformCouponPreview;
 }
 
@@ -1058,22 +1078,30 @@ export async function confirmRazorpayPlatformSubscription(payload: {
   });
 }
 
-// RE-ADDED EXPORTS
+// ─── Additional Exports ──────────────────────────────────────────────────────
+
 export async function deleteGymClass(id: string | number) {
-  return await fetchApi(`/gym/classes/${id}`, { method: 'DELETE' });
+  return await request(`/api/gym/classes/${id}`, { method: 'DELETE' });
 }
 
 export async function getGymStaffMember(id: string | number) {
-  return await fetchApi(`/gym/staff/${id}`);
+  return await request(`/api/gym/staff/${id}`);
 }
 
 export async function getGymTrainer(id: string | number) {
-  return await fetchApi(`/gym/trainers/${id}`);
+  return await request(`/api/gym/trainers/${id}`);
 }
 
-export async function updateGymTrainer(id: string | number, data: any) {
-  return await fetchApi(`/gym/trainers/${id}`, {
+export async function updateGymTrainer(id: string | number, data: Partial<CreateGymTrainerPayload>) {
+  return await request(`/api/gym/trainers/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
+
+export interface GymEmployeeDetails extends GymEmployeeSummary {}
+
+export type GymStaffSummary = GymEmployeeSummary;
+export type GymStaffDetails = GymEmployeeDetails;
+
+export function updateGymClass(id: number, payload: any) { return request(`/api/gym/classes/${id}`, { method: 'PUT', body: JSON.stringify(payload) }); }

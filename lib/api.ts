@@ -71,6 +71,13 @@ export async function request(path: string, options: RequestInit = {}, query?: R
   const payload = isJson ? await response.json() : await response.text();
 
   if (!response.ok) {
+    // Handle Unauthorized errors by redirecting to login
+    if (response.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('auth');
+      window.location.href = '/login';
+      throw new ApiError('Session expired. Please log in again.', 401);
+    }
+
     if (isJson && payload && typeof payload === 'object' && 'message' in payload) {
       if ((payload as any).error === 'subscription_expired' && typeof window !== 'undefined') {
         if (!window.location.pathname.startsWith('/gym/subscription')) {

@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: fullsaas-web
+    runtime: node
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      # NEXT_PUBLIC_API_URL → Render Dashboard mein set karo (backend URL)
+      - key: NODE_VERSION
+        value: "20"

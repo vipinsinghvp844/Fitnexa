@@ -19,7 +19,7 @@ export function Modal({
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-4 sm:p-6 backdrop-blur-sm">
-      <div className="relative flex w-full max-w-2xl max-h-full flex-col rounded-[30px] border border-[color:var(--app-border)] bg-[color:var(--app-surface-raised)] shadow-[0_28px_80px_rgba(2,6,23,0.40)]">
+      <div className="relative flex w-full max-w-2xl max-h-[calc(100vh-40px)] sm:max-h-[calc(100vh-80px)] flex-col rounded-[30px] border border-[color:var(--app-border)] bg-[color:var(--app-surface-raised)] shadow-[0_28px_80px_rgba(2,6,23,0.40)] overflow-hidden">
         <div className="flex-none p-6 pb-4">
           <div className="flex items-start justify-between gap-4">
             <div>

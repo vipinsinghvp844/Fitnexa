@@ -44,7 +44,23 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-zinc-50 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-6 text-3xl font-semibold text-zinc-900">Login</h1>
+        <h1 className="mb-2 text-3xl font-semibold text-zinc-900">Login</h1>
+        <p className="mb-4 text-sm text-zinc-500">Sign in to your gym workspace or the SaaS platform console.</p>
+
+        <div className="mb-6 rounded-2xl border border-indigo-100 bg-indigo-50/80 p-4 text-sm text-indigo-950">
+          <p className="font-semibold">Demo accounts (password: <code className="rounded bg-white px-1">password</code>)</p>
+          <ul className="mt-2 space-y-1.5 text-indigo-900/90">
+            <li>
+              <span className="font-medium">Platform (Super Admin):</span>{' '}
+              <code className="rounded bg-white px-1">superadmin@platform.com</code>
+            </li>
+            <li>
+              <span className="font-medium">Gym owner (example):</span>{' '}
+              <code className="rounded bg-white px-1">admin@powerhousegym.com</code>
+            </li>
+          </ul>
+        </div>
+
         <form className="space-y-4" onSubmit={handleSubmit}>
           <label className="block">
             <span className="text-sm text-zinc-600">Email</span>
