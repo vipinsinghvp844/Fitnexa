@@ -14,7 +14,7 @@ export const config = {
   ],
 };
 
-export function middleware(req: NextRequest) {
+export default function proxy(req: NextRequest) {
   const url = req.nextUrl;
 
   // Determine if this is a subdomain or a custom domain
