@@ -14,7 +14,7 @@ export function AdminPageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <section className="rounded-[30px] border border-[color:var(--app-border)] bg-[linear-gradient(135deg,rgba(14,165,233,0.08),rgba(255,255,255,0.95))] px-6 py-7 shadow-[0_20px_60px_rgba(15,23,42,0.10)] dark:bg-[linear-gradient(135deg,rgba(14,165,233,0.12),rgba(8,15,28,0.96))] sm:px-8">
+    <section className="rounded-[30px] border border-[color:var(--app-border)] bg-[color:var(--app-surface-raised)] px-6 py-7 shadow-[0_20px_60px_rgba(15,23,42,0.05)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.2)] sm:px-8 relative overflow-hidden">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-3xl">
           {eyebrow ? (

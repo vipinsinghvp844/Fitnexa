@@ -32,7 +32,7 @@ export function DataTable<T>({
       <div className="hidden rounded-[28px] border border-[color:var(--app-border)] bg-[color:var(--app-surface)] shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="min-w-full table-fixed divide-y divide-[color:var(--app-border)]">
-            <thead className="bg-slate-950 text-slate-300">
+            <thead className="bg-slate-50 text-slate-500 dark:bg-slate-950 dark:text-slate-300">
               <tr>
                 {columns.map((column) => (
                   <th key={column.id} className={`whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] ${column.className ?? ''}`}>
@@ -43,7 +43,7 @@ export function DataTable<T>({
             </thead>
             <tbody className="divide-y divide-[color:var(--app-border)]">
               {data.map((item) => (
-                <tr key={rowKey(item)} className="align-top transition-colors duration-150 hover:bg-slate-50">
+                <tr key={rowKey(item)} className="align-top transition-colors duration-150 hover:bg-slate-50 dark:hover:bg-white/[0.03]">
                   {columns.map((column) => (
                     <td key={`${rowKey(item)}-${column.id}`} className={`whitespace-nowrap px-5 py-3 text-sm text-[color:var(--app-text)] ${column.className ?? ''}`}>
                       {column.render(item)}

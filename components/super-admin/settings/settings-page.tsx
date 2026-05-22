@@ -3,6 +3,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { AdminPageHeader } from '@/components/admin/page-header';
 import { Field, TextInput, SelectInput, Toggle } from '@/components/admin/fields';
+import { ImageUpload } from '@/components/admin/image-upload';
 import { LoadingState } from '@/components/admin/loading-state';
 import { DashboardIcon } from '@/components/dashboard/dashboard-icons';
 import {
@@ -233,13 +234,11 @@ export function SettingsPage() {
                       required
                     />
                   </Field>
-                  <Field label="Logo URL">
-                    <TextInput
-                      value={platformForm.logo}
-                      onChange={(e) => setPlatformForm({ ...platformForm, logo: e.target.value })}
-                      placeholder="https://example.com/logo.png"
-                    />
-                  </Field>
+                  <ImageUpload
+                    label="Platform Logo"
+                    value={platformForm.logo || ''}
+                    onChange={(url) => setPlatformForm({ ...platformForm, logo: url })}
+                  />
                   <Field label="Support Email">
                     <TextInput
                       type="email"

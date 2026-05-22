@@ -167,9 +167,20 @@ export function SuperAdminGymsPage({ initialQuery }: { initialQuery: ListQuery }
             mobileRender={(gym) => (
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-base font-semibold text-[color:var(--app-text)]">{gym.name}</p>
-                    <p className="mt-1 text-sm text-[color:var(--app-muted)]">{gym.owner.name || gym.owner.email || 'No owner'}</p>
+                  <div className="flex items-center gap-3">
+                    {gym.logo_url ? (
+                      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-[color:var(--app-border)] bg-[color:var(--app-surface)]">
+                        <img src={gym.logo_url} alt={gym.name} className="h-full w-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 font-bold text-sky-600 dark:text-sky-300">
+                        {gym.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-base font-semibold text-[color:var(--app-text)]">{gym.name}</p>
+                      <p className="mt-1 text-sm text-[color:var(--app-muted)]">{gym.owner.name || gym.owner.email || 'No owner'}</p>
+                    </div>
                   </div>
                   <StatusBadge value={gym.status} />
                 </div>
@@ -194,10 +205,16 @@ export function SuperAdminGymsPage({ initialQuery }: { initialQuery: ListQuery }
                 id: 'gym',
                 header: 'Gym',
                 render: (gym) => (
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-sky-500/10 text-sky-600 dark:text-sky-300">
-                      <DashboardIcon name="gym" className="h-5 w-5" />
-                    </div>
+                  <div className="flex items-center gap-3">
+                    {gym.logo_url ? (
+                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-[18px] border border-[color:var(--app-border)] bg-[color:var(--app-surface)]">
+                        <img src={gym.logo_url} alt={gym.name} className="h-full w-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-sky-500/10 font-bold text-sky-600 dark:text-sky-300">
+                        {gym.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div>
                       <p className="font-semibold text-[color:var(--app-text)]">{gym.name}</p>
                       <p className="mt-1 text-xs text-[color:var(--app-muted)]">{gym.city || '—'}, {gym.country || '—'}</p>

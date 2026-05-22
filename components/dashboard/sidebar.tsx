@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { DashboardMenuItem, PortalConfig } from '@/lib/dashboard';
+import { getSettings } from '@/lib/super-admin';
 import { DashboardIcon } from './dashboard-icons';
 
 function SidebarLink({
@@ -61,6 +63,20 @@ export function Sidebar({
   onClose: () => void;
   pathname: string;
 }) {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (config.key === 'super-admin') {
+      getSettings()
+        .then((res) => {
+          if (res.platform.logo) {
+            setLogoUrl(res.platform.logo);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [config.key]);
+
   return (
     <>
       <div
@@ -77,14 +93,20 @@ export function Sidebar({
         )}
       >
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-600 dark:text-sky-300">
-              Full SaaS
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold text-[color:var(--app-text)]">
-              {config.shortLabel} Hub
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--app-muted)]">{config.description}</p>
+          <div className="flex flex-col">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Platform Logo" className="h-14 max-w-[200px] object-contain mb-4" />
+            ) : (
+              <>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-600 dark:text-sky-300">
+                  Full SaaS
+                </p>
+                <h1 className="mt-1 text-2xl font-semibold text-[color:var(--app-text)]">
+                  {config.shortLabel} Hub
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-[color:var(--app-muted)]">{config.description}</p>
+              </>
+            )}
           </div>
           <button
             type="button"
@@ -105,7 +127,7 @@ export function Sidebar({
         {config.key === 'gym' && (
           <Link
             href="/gym/support"
-            className="group block rounded-[24px] border border-[color:var(--app-border)] bg-[linear-gradient(160deg,rgba(14,165,233,0.08),rgba(255,255,255,0.9))] p-4.5 transition hover:border-sky-500/40 dark:bg-[linear-gradient(160deg,rgba(14,165,233,0.12),rgba(15,23,42,0.95))]"
+            className="group block rounded-[24px] border border-[color:var(--app-border)] bg-[color:var(--app-surface-raised)] p-4 transition hover:border-sky-500/40"
           >
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-500 text-white shadow-[0_8px_16px_rgba(14,165,233,0.25)] group-hover:scale-105 transition duration-200">
@@ -127,7 +149,7 @@ export function Sidebar({
         {config.key === 'super-admin' && (
           <Link
             href="/super-admin/support"
-            className="group block rounded-[24px] border border-[color:var(--app-border)] bg-[linear-gradient(160deg,rgba(14,165,233,0.08),rgba(255,255,255,0.9))] p-4.5 transition hover:border-sky-500/40 dark:bg-[linear-gradient(160deg,rgba(14,165,233,0.12),rgba(15,23,42,0.95))]"
+            className="group block rounded-[24px] border border-[color:var(--app-border)] bg-[color:var(--app-surface-raised)] p-4 transition hover:border-sky-500/40"
           >
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-[0_8px_16px_rgba(245,158,11,0.25)] group-hover:scale-105 transition duration-200">
