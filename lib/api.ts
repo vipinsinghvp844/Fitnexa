@@ -71,8 +71,8 @@ export async function request(path: string, options: RequestInit = {}, query?: R
   const payload = isJson ? await response.json() : await response.text();
 
   if (!response.ok) {
-    // Handle Unauthorized errors by redirecting to login
-    if (response.status === 401 && typeof window !== 'undefined') {
+    // Handle Unauthorized errors by redirecting to login (skip for login endpoint itself to allow error display)
+    if (response.status === 401 && typeof window !== 'undefined' && !path.includes('/api/login')) {
       localStorage.removeItem('auth');
       window.location.href = '/login';
       throw new ApiError('Session expired. Please log in again.', 401);
