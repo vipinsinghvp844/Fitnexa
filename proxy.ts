@@ -23,12 +23,13 @@ export default function proxy(req: NextRequest) {
   // Clean hostname for port if local dev
   const cleanHost = req.headers.get('host') || '';
   
-  // Skip localhost:3000 or root domain checks
+  // Skip localhost:3000, root domain checks, or vercel.app domains
   if (
     cleanHost !== 'localhost:3000' &&
     cleanHost !== '127.0.0.1:3000' &&
     cleanHost !== rootDomain &&
-    cleanHost !== `www.${rootDomain}`
+    cleanHost !== `www.${rootDomain}` &&
+    !cleanHost.endsWith('.vercel.app')
   ) {
     // If it's a subdomain of our application (e.g. powerhouse.gymsaas.com)
     if (cleanHost.endsWith(`.${rootDomain}`)) {
