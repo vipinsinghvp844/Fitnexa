@@ -465,13 +465,32 @@ export interface TenantSettings {
 export interface SecuritySettings {
   session_timeout_minutes: number;
   max_login_attempts: number;
+  lockout_minutes: number;
   require_strong_password: boolean;
 }
 
 export interface NotificationSettings {
+  // Email
   email_enabled: boolean;
+  email_provider: 'gmail' | 'sendgrid' | 'mailgun' | 'smtp';
+  smtp_host: string;
+  smtp_port: number;
+  smtp_username: string;
+  smtp_password: string;
+  smtp_from_address: string;
+  smtp_from_name: string;
+  smtp_encryption: 'tls' | 'ssl' | 'none';
+  // Sendgrid
+  sendgrid_api_key: string;
+  // Mailgun
+  mailgun_api_key: string;
+  mailgun_domain: string;
+  // SMS
   sms_enabled: boolean;
+  // Webhook
   webhook_url: string;
+  webhook_format: 'json' | 'form' | 'slack';
+  webhook_secret: string;
 }
 
 export interface FeatureSettings {

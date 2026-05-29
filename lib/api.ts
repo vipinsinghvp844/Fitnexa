@@ -71,6 +71,14 @@ export async function request(path: string, options: RequestInit = {}, query?: R
   const payload = isJson ? await response.json() : await response.text();
 
   if (!response.ok) {
+    // Handle Maintenance Mode
+    if (response.status === 503 && typeof window !== 'undefined') {
+      if (window.location.pathname !== '/maintenance') {
+        window.location.href = '/maintenance';
+      }
+      throw new ApiError('Platform is under maintenance.', 503);
+    }
+
     // Handle Unauthorized errors by redirecting to login (skip for login endpoint itself to allow error display)
     if (response.status === 401 && typeof window !== 'undefined' && !path.includes('/api/login')) {
       localStorage.removeItem('auth');
@@ -173,4 +181,8 @@ export function subscribePublicPlan(slug: string, payload: { name: string; email
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export function getPublicPlatformConfig() {
+  return request('/api/platform/config', { method: 'GET' });
 }

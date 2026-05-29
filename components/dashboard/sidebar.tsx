@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { DashboardMenuItem, PortalConfig } from '@/lib/dashboard';
-import { getSettings } from '@/lib/super-admin';
+import { getPublicPlatformConfig } from '@/lib/api';
 import { DashboardIcon } from './dashboard-icons';
 
 function SidebarLink({
@@ -64,18 +64,53 @@ export function Sidebar({
   pathname: string;
 }) {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [features, setFeatures] = useState<Record<string, boolean>>({
+    enable_classes: true,
+    enable_trainers: true,
+    enable_store: true,
+    enable_diet_plans: true,
+  });
 
   useEffect(() => {
-    if (config.key === 'super-admin') {
-      getSettings()
-        .then((res) => {
-          if (res.platform.logo) {
-            setLogoUrl(res.platform.logo);
+    // Always fetch public config to get logo + feature flags
+    getPublicPlatformConfig()
+      .then((res: any) => {
+        if (res?.data?.system?.maintenance_mode && config.key !== 'super-admin' && typeof window !== 'undefined') {
+           window.location.href = '/maintenance';
+           return;
+        }
+
+        if (res?.data?.platform?.logo) {
+          let gymLogo = null;
+          if (config.key !== 'super-admin' && typeof window !== 'undefined') {
+            try {
+              const auth = JSON.parse(localStorage.getItem('auth') || '{}');
+              gymLogo = auth?.user?.tenant?.logo_url;
+            } catch (e) {}
           }
-        })
-        .catch(() => {});
-    }
+          setLogoUrl(gymLogo || res.data.platform.logo);
+        }
+        if (res?.data?.features) {
+          setFeatures(res.data.features as Record<string, boolean>);
+        }
+      })
+      .catch(() => {});
   }, [config.key]);
+
+  // Map menu item IDs to feature flags (for gym portal)
+  const FEATURE_FLAG_MAP: Record<string, string> = {
+    'gym-classes':   'enable_classes',
+    'gym-trainers':  'enable_trainers',
+    'gym-inventory': 'enable_store',
+  };
+
+  const visibleMenu = config.menu.filter((item) => {
+    const flag = FEATURE_FLAG_MAP[item.id];
+    if (flag && config.key === 'gym') {
+      return features[flag] !== false;
+    }
+    return true;
+  });
 
   return (
     <>
@@ -95,7 +130,7 @@ export function Sidebar({
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col">
             {logoUrl ? (
-              <img src={logoUrl} alt="Platform Logo" className="h-14 max-w-[200px] object-contain mb-4" />
+              <img src={logoUrl} alt="Platform Logo" className="max-h-10 w-auto max-w-full object-contain object-left mb-2" />
             ) : (
               <>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-600 dark:text-sky-300">
@@ -119,7 +154,7 @@ export function Sidebar({
         </div>
 
         <nav className="mt-8 flex-1 space-y-2 overflow-y-auto pr-1">
-          {config.menu.map((item) => (
+          {visibleMenu.map((item) => (
             <SidebarLink key={item.id} item={item} active={pathname === item.href} onNavigate={onClose} />
           ))}
         </nav>

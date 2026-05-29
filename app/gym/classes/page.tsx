@@ -28,8 +28,8 @@ export default function GymClassesPage() {
       setLoading(true);
       const [classRes, trainerRes, memberRes] = await Promise.all([
         getGymClasses(),
-        getGymTrainers(),
-        getGymMembers()
+        getGymTrainers().catch(() => ({ data: [] })),
+        getGymMembers().catch(() => ({ data: [] }))
       ]);
       setClasses((classRes as any).data);
       setTrainers((trainerRes as any).data);

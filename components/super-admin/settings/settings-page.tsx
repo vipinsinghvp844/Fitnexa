@@ -83,8 +83,25 @@ export function SettingsPage() {
   const [billingForm, setBillingForm] = useState<BillingSettings>({ currency: 'USD', tax_rate: 0, trial_days: 14, grace_period_days: 3, auto_suspend: true });
   const [couponForm, setCouponForm] = useState<CouponSettings>({ enable_coupons: true, max_discount_percentage: 100, max_usage_per_coupon: 1000 });
   const [tenantForm, setTenantForm] = useState<TenantSettings>({ allow_signup: true, auto_approve: true, default_plan_id: null });
-  const [securityForm, setSecurityForm] = useState<SecuritySettings>({ session_timeout_minutes: 120, max_login_attempts: 5, require_strong_password: true });
-  const [notificationForm, setNotificationForm] = useState<NotificationSettings>({ email_enabled: true, sms_enabled: false, webhook_url: '' });
+  const [securityForm, setSecurityForm] = useState<SecuritySettings>({ session_timeout_minutes: 120, max_login_attempts: 5, lockout_minutes: 15, require_strong_password: true });
+  const [notificationForm, setNotificationForm] = useState<NotificationSettings>({
+    email_enabled: false,
+    email_provider: 'gmail',
+    smtp_host: '',
+    smtp_port: 587,
+    smtp_username: '',
+    smtp_password: '',
+    smtp_from_address: '',
+    smtp_from_name: '',
+    smtp_encryption: 'tls',
+    sendgrid_api_key: '',
+    mailgun_api_key: '',
+    mailgun_domain: '',
+    sms_enabled: false,
+    webhook_url: '',
+    webhook_format: 'json',
+    webhook_secret: '',
+  });
   const [featureForm, setFeatureForm] = useState<FeatureSettings>({ enable_classes: true, enable_trainers: true, enable_store: true, enable_diet_plans: true });
   const [systemForm, setSystemForm] = useState<SystemSettings>({ maintenance_mode: false, debug_mode: false });
 
@@ -487,10 +504,10 @@ export function SettingsPage() {
             {/* SECURITY MODULE */}
             {activeTab === 'security' && (
               <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-[color:var(--app-text)]">Platform Security & Auth Rules</h3>
-                <p className="text-sm text-[color:var(--app-muted)]">Lock down user sessions and enforce password rules.</p>
+                <h3 className="text-lg font-semibold text-[color:var(--app-text)]">Platform Security &amp; Auth Rules</h3>
+                <p className="text-sm text-[color:var(--app-muted)]">Lock down user sessions, enforce password policies, and control login lockouts.</p>
                 <div className="grid gap-5 md:grid-cols-2">
-                  <Field label="Session Timeout Duration (Minutes)">
+                  <Field label="Session Timeout (Minutes)" hint="After this time, the user must log in again. Applies to new logins.">
                     <TextInput
                       type="number"
                       min="5"
@@ -499,19 +516,28 @@ export function SettingsPage() {
                       required
                     />
                   </Field>
-                  <Field label="Maximum Failed Login Attempts" hint="Temporary lock account after threshold limit is hit.">
+                  <Field label="Max Failed Login Attempts" hint="After this many failures, the account will be temporarily locked.">
                     <TextInput
                       type="number"
-                      min="3"
+                      min="1"
                       value={securityForm.max_login_attempts}
                       onChange={(e) => setSecurityForm({ ...securityForm, max_login_attempts: Number(e.target.value) })}
+                      required
+                    />
+                  </Field>
+                  <Field label="Account Lockout Duration (Minutes)" hint="How long the account stays locked after max attempts are reached.">
+                    <TextInput
+                      type="number"
+                      min="1"
+                      value={securityForm.lockout_minutes}
+                      onChange={(e) => setSecurityForm({ ...securityForm, lockout_minutes: Number(e.target.value) })}
                       required
                     />
                   </Field>
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-[color:var(--app-border)]">
                   <Toggle
-                    label="Enforce Strong Password Creation Policies"
+                    label="Enforce Strong Password Policies"
                     checked={securityForm.require_strong_password}
                     onChange={(checked) => setSecurityForm({ ...securityForm, require_strong_password: checked })}
                   />
@@ -524,29 +550,231 @@ export function SettingsPage() {
 
             {/* NOTIFICATIONS MODULE */}
             {activeTab === 'notifications' && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-[color:var(--app-text)]">Alerts & System Webhooks</h3>
-                <p className="text-sm text-[color:var(--app-muted)]">Toggle core notifications and configure system outbound webhooks.</p>
-                <div className="grid gap-5 md:grid-cols-2 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-[color:var(--app-border)]">
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-lg font-semibold text-[color:var(--app-text)]">Email Notifications</h3>
+                  <p className="text-sm text-[color:var(--app-muted)] mt-1">Configure how the platform sends system emails (alerts, receipts, notifications).</p>
+                </div>
+
+                {/* Email master toggle */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-[color:var(--app-border)]">
                   <Toggle
-                    label="Send Platform Support Emails"
+                    label="Enable Email Notifications"
                     checked={notificationForm.email_enabled}
                     onChange={(checked) => setNotificationForm({ ...notificationForm, email_enabled: checked })}
                   />
-                  <Toggle
-                    label="Send Platform SMS Alerts"
-                    checked={notificationForm.sms_enabled}
-                    onChange={(checked) => setNotificationForm({ ...notificationForm, sms_enabled: checked })}
-                  />
                 </div>
-                <Field label="Global Outbound Webhook URL" hint="Receives tenant creations, subscription updates, and billing failures.">
-                  <TextInput
-                    type="url"
-                    value={notificationForm.webhook_url}
-                    onChange={(e) => setNotificationForm({ ...notificationForm, webhook_url: e.target.value })}
-                    placeholder="https://api.yourdomain.com/webhooks/receiver"
-                  />
-                </Field>
+
+                {notificationForm.email_enabled && (
+                  <div className="space-y-5">
+                    {/* Provider Selector */}
+                    <Field label="Email Provider">
+                      <SelectInput
+                        value={notificationForm.email_provider}
+                        onChange={(e) => setNotificationForm({ ...notificationForm, email_provider: e.target.value as NotificationSettings['email_provider'] })}
+                      >
+                        <option value="gmail">Gmail (Google SMTP)</option>
+                        <option value="sendgrid">SendGrid API</option>
+                        <option value="mailgun">Mailgun API</option>
+                        <option value="smtp">Custom SMTP Server</option>
+                      </SelectInput>
+                    </Field>
+
+                    {/* Gmail / Custom SMTP fields */}
+                    {(notificationForm.email_provider === 'gmail' || notificationForm.email_provider === 'smtp') && (
+                      <div className="rounded-2xl border border-[color:var(--app-border)] bg-[color:var(--app-surface-raised)] p-5 space-y-4">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--app-muted)]">
+                          {notificationForm.email_provider === 'gmail' ? 'Gmail SMTP Settings' : 'Custom SMTP Settings'}
+                        </p>
+                        {notificationForm.email_provider === 'gmail' && (
+                          <div className="rounded-xl bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/20 p-3 text-xs text-sky-700 dark:text-sky-300">
+                            <strong>Gmail setup:</strong> Use <code>smtp.gmail.com</code>, port <code>587</code>, TLS. Enable &quot;App Password&quot; in your Google Account and use that as the password.
+                          </div>
+                        )}
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <Field label="SMTP Host">
+                            <TextInput
+                              value={notificationForm.smtp_host}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, smtp_host: e.target.value })}
+                              placeholder={notificationForm.email_provider === 'gmail' ? 'smtp.gmail.com' : 'mail.yourdomain.com'}
+                            />
+                          </Field>
+                          <Field label="SMTP Port">
+                            <TextInput
+                              type="number"
+                              value={notificationForm.smtp_port}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, smtp_port: Number(e.target.value) })}
+                              placeholder="587"
+                            />
+                          </Field>
+                          <Field label="SMTP Username (Email)">
+                            <TextInput
+                              value={notificationForm.smtp_username}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, smtp_username: e.target.value })}
+                              placeholder="you@gmail.com"
+                            />
+                          </Field>
+                          <Field label="SMTP Password / App Password">
+                            <TextInput
+                              type="password"
+                              value={notificationForm.smtp_password}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, smtp_password: e.target.value })}
+                              placeholder="App password or SMTP password"
+                            />
+                          </Field>
+                          <Field label="From Email Address">
+                            <TextInput
+                              type="email"
+                              value={notificationForm.smtp_from_address}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, smtp_from_address: e.target.value })}
+                              placeholder="noreply@yourplatform.com"
+                            />
+                          </Field>
+                          <Field label="From Name">
+                            <TextInput
+                              value={notificationForm.smtp_from_name}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, smtp_from_name: e.target.value })}
+                              placeholder="Gym SaaS Platform"
+                            />
+                          </Field>
+                          <Field label="Encryption">
+                            <SelectInput
+                              value={notificationForm.smtp_encryption}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, smtp_encryption: e.target.value as 'tls' | 'ssl' | 'none' })}
+                            >
+                              <option value="tls">TLS (Recommended)</option>
+                              <option value="ssl">SSL</option>
+                              <option value="none">None (Not Recommended)</option>
+                            </SelectInput>
+                          </Field>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SendGrid fields */}
+                    {notificationForm.email_provider === 'sendgrid' && (
+                      <div className="rounded-2xl border border-[color:var(--app-border)] bg-[color:var(--app-surface-raised)] p-5 space-y-4">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--app-muted)]">SendGrid API Settings</p>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <Field label="SendGrid API Key">
+                            <TextInput
+                              type="password"
+                              value={notificationForm.sendgrid_api_key}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, sendgrid_api_key: e.target.value })}
+                              placeholder="SG.xxxxxxxxxxxx"
+                            />
+                          </Field>
+                          <Field label="From Email Address">
+                            <TextInput
+                              type="email"
+                              value={notificationForm.smtp_from_address}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, smtp_from_address: e.target.value })}
+                              placeholder="noreply@yourplatform.com"
+                            />
+                          </Field>
+                          <Field label="From Name">
+                            <TextInput
+                              value={notificationForm.smtp_from_name}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, smtp_from_name: e.target.value })}
+                              placeholder="Gym SaaS Platform"
+                            />
+                          </Field>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mailgun fields */}
+                    {notificationForm.email_provider === 'mailgun' && (
+                      <div className="rounded-2xl border border-[color:var(--app-border)] bg-[color:var(--app-surface-raised)] p-5 space-y-4">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--app-muted)]">Mailgun API Settings</p>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <Field label="Mailgun API Key">
+                            <TextInput
+                              type="password"
+                              value={notificationForm.mailgun_api_key}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, mailgun_api_key: e.target.value })}
+                              placeholder="key-xxxxxxxxxxxxxxxx"
+                            />
+                          </Field>
+                          <Field label="Mailgun Domain">
+                            <TextInput
+                              value={notificationForm.mailgun_domain}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, mailgun_domain: e.target.value })}
+                              placeholder="mg.yourdomain.com"
+                            />
+                          </Field>
+                          <Field label="From Email Address">
+                            <TextInput
+                              type="email"
+                              value={notificationForm.smtp_from_address}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, smtp_from_address: e.target.value })}
+                              placeholder="noreply@yourplatform.com"
+                            />
+                          </Field>
+                          <Field label="From Name">
+                            <TextInput
+                              value={notificationForm.smtp_from_name}
+                              onChange={(e) => setNotificationForm({ ...notificationForm, smtp_from_name: e.target.value })}
+                              placeholder="Gym SaaS Platform"
+                            />
+                          </Field>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SMS Section */}
+                <div>
+                  <h3 className="text-lg font-semibold text-[color:var(--app-text)]">SMS Notifications</h3>
+                  <div className="mt-3 rounded-2xl border border-dashed border-[color:var(--app-border)] bg-[color:var(--app-surface)] p-5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-400/10">
+                        <span className="text-xl">📱</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm text-[color:var(--app-text)]">SMS Provider — Coming Soon</p>
+                        <p className="text-xs text-[color:var(--app-muted)] mt-0.5">Twilio, AWS SNS and other providers will be available in a future update.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Webhook Section */}
+                <div>
+                  <h3 className="text-lg font-semibold text-[color:var(--app-text)]">Outbound Webhooks</h3>
+                  <p className="text-sm text-[color:var(--app-muted)] mt-1">Send real-time events (subscriptions, signups, payments) to your own endpoint.</p>
+                  <div className="mt-4 space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Field label="Webhook URL" hint="POST requests will be sent here on key platform events.">
+                        <TextInput
+                          type="url"
+                          value={notificationForm.webhook_url}
+                          onChange={(e) => setNotificationForm({ ...notificationForm, webhook_url: e.target.value })}
+                          placeholder="https://yourserver.com/webhooks/receive"
+                        />
+                      </Field>
+                      <Field label="Webhook Format" hint="How the payload will be encoded.">
+                        <SelectInput
+                          value={notificationForm.webhook_format}
+                          onChange={(e) => setNotificationForm({ ...notificationForm, webhook_format: e.target.value as 'json' | 'form' | 'slack' })}
+                        >
+                          <option value="json">JSON (application/json)</option>
+                          <option value="form">Form Encoded (application/x-www-form-urlencoded)</option>
+                          <option value="slack">Slack-Compatible (Block Kit)</option>
+                        </SelectInput>
+                      </Field>
+                      <Field label="Webhook Secret" hint="Used to sign payloads. Verify X-Webhook-Signature header on your server.">
+                        <TextInput
+                          type="password"
+                          value={notificationForm.webhook_secret}
+                          onChange={(e) => setNotificationForm({ ...notificationForm, webhook_secret: e.target.value })}
+                          placeholder="A strong secret key"
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
