@@ -42,6 +42,7 @@ export interface GymSummary {
   platform_revenue?: number;
   active_subscription: {
     id: number;
+    plan_id?: number | null;
     plan_name: string | null;
     billing_cycle: string | null;
     status: string;
@@ -796,6 +797,22 @@ export async function resumeSubscription(id: number | string) {
   return request(`/api/super-admin/subscriptions/${id}/resume`, {
     method: 'POST',
   }) as Promise<{ message: string; data: SubscriptionSummary }>;
+}
+
+export function getSuperAdminNotifications(query?: Record<string, string | number | boolean | null>) {
+  return request('/api/super-admin/notifications', { method: 'GET' }, query);
+}
+
+export function getSuperAdminNotificationCounts() {
+  return request('/api/super-admin/notifications/counts', { method: 'GET' });
+}
+
+export function markSuperAdminNotificationRead(notificationId: number) {
+  return request(`/api/super-admin/notifications/${notificationId}/read`, { method: 'PUT' });
+}
+
+export function markAllSuperAdminNotificationsRead() {
+  return request('/api/super-admin/notifications/mark-all-read', { method: 'PUT' });
 }
 
 export async function suspendSubscription(id: number | string) {

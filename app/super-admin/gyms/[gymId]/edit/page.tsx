@@ -3,7 +3,8 @@ import { GymForm } from '@/components/super-admin/gym-form';
 export default async function SuperAdminGymEditRoute({
   params,
 }: {
-  params: { gymId: string };
+  params: Promise<{ gymId: string }>;
 }) {
-  return <GymForm mode="edit" gymId={params.gymId} />;
+  const resolvedParams = await params;
+  return <GymForm mode="edit" gymId={resolvedParams.gymId} />;
 }

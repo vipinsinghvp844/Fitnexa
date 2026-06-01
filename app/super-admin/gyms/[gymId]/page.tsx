@@ -4,14 +4,15 @@ export default async function SuperAdminGymDetailsRoute({
   params,
   searchParams,
 }: {
-  params: { gymId: string };
+  params: Promise<{ gymId: string }>;
   searchParams: Promise<{ tempPassword?: string; updated?: string }>;
 }) {
+  const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
 
   return (
     <GymDetailsPage
-      gymId={params.gymId}
+      gymId={resolvedParams.gymId}
       tempPassword={resolvedSearchParams.tempPassword}
       updated={resolvedSearchParams.updated}
     />

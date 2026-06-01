@@ -100,6 +100,7 @@ const portalConfigs: Record<PortalKey, PortalConfig> = {
       { id: 'super-admin-coupons', label: 'Coupons', href: '/super-admin/coupons', icon: 'coupons', description: 'Promotional campaign workspace and redemption analytics shell.' },
       { id: 'super-admin-reports', label: 'Reports', href: '/super-admin/reports', icon: 'reports', description: 'Executive reporting surfaces and export-ready analytics layout.' },
       { id: 'super-admin-settings', label: 'Settings', href: '/super-admin/settings', icon: 'settings', description: 'Platform controls, defaults, and environment settings shell.' },
+      { id: 'super-admin-notifications', label: 'Notifications', href: '/super-admin/notifications', icon: 'bell', description: 'View platform alerts and new gym registrations.' },
       { id: 'super-admin-support', label: 'Support Tickets', href: '/super-admin/support', icon: 'alert-circle', description: 'Manage and resolve tickets submitted by gym admins.' },
       { id: 'super-admin-cms', label: 'CMS Website', href: '/super-admin/cms', icon: 'spark', description: 'Edit public landing page content, SEO, and choose your design template.' },
     ],

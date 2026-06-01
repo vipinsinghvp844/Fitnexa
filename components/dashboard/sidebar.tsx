@@ -63,7 +63,15 @@ export function Sidebar({
   onClose: () => void;
   pathname: string;
 }) {
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(() => {
+    if (config.key !== 'super-admin' && typeof window !== 'undefined') {
+      try {
+        const auth = JSON.parse(localStorage.getItem('auth') || '{}');
+        return auth?.user?.tenant?.logo_url || null;
+      } catch (e) {}
+    }
+    return null;
+  });
   const [features, setFeatures] = useState<Record<string, boolean>>({
     enable_classes: true,
     enable_trainers: true,
@@ -80,16 +88,16 @@ export function Sidebar({
            return;
         }
 
-        if (res?.data?.platform?.logo) {
-          let gymLogo = null;
-          if (config.key !== 'super-admin' && typeof window !== 'undefined') {
-            try {
-              const auth = JSON.parse(localStorage.getItem('auth') || '{}');
-              gymLogo = auth?.user?.tenant?.logo_url;
-            } catch (e) {}
-          }
-          setLogoUrl(gymLogo || res.data.platform.logo);
+        let finalLogoUrl = null;
+        if (config.key === 'super-admin') {
+          finalLogoUrl = res?.data?.platform?.logo || null;
+        } else if (typeof window !== 'undefined') {
+          try {
+            const auth = JSON.parse(localStorage.getItem('auth') || '{}');
+            finalLogoUrl = auth?.user?.tenant?.logo_url || null;
+          } catch (e) {}
         }
+        setLogoUrl(finalLogoUrl);
         if (res?.data?.features) {
           setFeatures(res.data.features as Record<string, boolean>);
         }

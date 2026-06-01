@@ -120,7 +120,19 @@ export function login(payload: { email: string; password: string }) {
   });
 }
 
-export function register(payload: { name: string; email: string; password: string; password_confirmation: string }) {
+export function register(payload: { 
+  gym_name?: string; 
+  name: string; 
+  email: string; 
+  phone?: string;
+  address?: string; 
+  city?: string;
+  state?: string;
+  country?: string;
+  zip?: string;
+  password: string; 
+  password_confirmation: string;
+}) {
   return request('/api/register', {
     method: 'POST',
     body: JSON.stringify(payload),

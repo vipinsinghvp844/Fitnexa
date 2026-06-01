@@ -12,32 +12,34 @@ import { Breadcrumbs } from './breadcrumbs';
 import { DashboardIcon } from './dashboard-icons';
 import { ThemeToggle } from './theme-toggle';
 
+import { getSuperAdminNotificationCounts } from '@/lib/super-admin';
+
 function NotificationBell({ portal }: { portal: string }) {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (portal !== 'gym') return;
+    if (portal !== 'gym' && portal !== 'super-admin') return;
 
     let cancelled = false;
 
-    (async () => {
+    const fetchCounts = async () => {
       try {
-        const response = (await getGymNotificationCounts()) as { data: GymNotificationCounts };
-        if (!cancelled) setUnreadCount(response.data.unread_notifications);
-      } catch {
-        // Silently fail — this is a non-critical badge
-      }
-    })();
-
-    // Refresh every 60 seconds
-    const intervalId = window.setInterval(async () => {
-      try {
-        const response = (await getGymNotificationCounts()) as { data: GymNotificationCounts };
-        if (!cancelled) setUnreadCount(response.data.unread_notifications);
+        if (portal === 'gym') {
+          const response = (await getGymNotificationCounts()) as { data: GymNotificationCounts };
+          if (!cancelled) setUnreadCount(response.data.unread_notifications);
+        } else if (portal === 'super-admin') {
+          const response = (await getSuperAdminNotificationCounts()) as { data: { unread_notifications: number } };
+          if (!cancelled) setUnreadCount(response.data.unread_notifications);
+        }
       } catch {
         // Silently fail
       }
-    }, 60_000);
+    };
+
+    fetchCounts();
+
+    // Refresh every 60 seconds
+    const intervalId = window.setInterval(fetchCounts, 60_000);
 
     return () => {
       cancelled = true;
@@ -45,11 +47,13 @@ function NotificationBell({ portal }: { portal: string }) {
     };
   }, [portal]);
 
-  if (portal !== 'gym') return null;
+  if (portal !== 'gym' && portal !== 'super-admin') return null;
+
+  const href = portal === 'super-admin' ? '/super-admin/notifications' : '/gym/notifications';
 
   return (
     <Link
-      href="/gym/notifications"
+      href={href}
       className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[color:var(--app-border)] bg-[color:var(--app-surface)] text-[color:var(--app-text)] shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-600"
       aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
     >

@@ -74,8 +74,8 @@ export function GymForm({
           setLogoPreview(gymResponse.logo_url);
           setForm({
             name: gymResponse.name,
-            owner_name: gymResponse.owner.name || '',
-            owner_email: gymResponse.owner.email || '',
+            owner_name: gymResponse.owner?.name || '',
+            owner_email: gymResponse.owner?.email || '',
             phone: gymResponse.phone || '',
             address: gymResponse.address || '',
             city: gymResponse.city || '',
@@ -83,7 +83,7 @@ export function GymForm({
             country: gymResponse.country || '',
             gst_number: gymResponse.gst_number || '',
             status: gymResponse.status,
-            subscription_plan_id: gymResponse.active_subscription ? String(gymResponse.active_subscription.id ? plansResponse.data.find((plan) => plan.name === gymResponse.active_subscription?.plan_name)?.id ?? '' : '') : '',
+            subscription_plan_id: gymResponse.active_subscription?.plan_id ? String(gymResponse.active_subscription.plan_id) : '',
           });
         }
       })
